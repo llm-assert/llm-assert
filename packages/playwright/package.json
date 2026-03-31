@@ -64,7 +64,13 @@
     "ai",
     "evaluation",
     "groundedness",
-    "pii"
+    "pii",
+    "matchers",
+    "qa",
+    "quality-assurance",
+    "schema-validation",
+    "sentiment-analysis",
+    "fuzzy-matching"
   ],
   "license": "MIT",
   "repository": {
