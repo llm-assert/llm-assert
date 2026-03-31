@@ -1,0 +1,5 @@
+# Security-sensitive paths — require review before merge
+/packages/playwright/src/judge/     @Cporter97
+/supabase/migrations/               @Cporter97
+/.github/workflows/publish.yml      @Cporter97
+/.github/workflows/ci.yml           @Cporter97
