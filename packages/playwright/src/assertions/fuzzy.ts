@@ -1,6 +1,6 @@
-import { JudgeClient } from '../judge/client.js'
-import { FUZZY_SYSTEM, FUZZY_USER } from '../judge/prompts.js'
-import type { AssertionResult, JudgeConfig } from '../types.js'
+import { JudgeClient } from "../judge/client.js";
+import { FUZZY_SYSTEM, FUZZY_USER } from "../judge/prompts.js";
+import type { AssertionResult, JudgeConfig } from "../types.js";
 
 /**
  * Evaluate semantic similarity between candidate and reference text.
@@ -16,20 +16,26 @@ export async function evaluateFuzzy(
     return {
       pass: false,
       score: 0,
-      reasoning: 'Empty input — cannot evaluate similarity.',
-      model: 'none',
+      reasoning: "Empty input — cannot evaluate similarity.",
+      model: "none",
       latencyMs: 0,
-    }
+    };
   }
 
-  const judge = new JudgeClient(config)
+  const judge = new JudgeClient(config);
   const { response, model, latencyMs } = await judge.evaluate(
     FUZZY_SYSTEM,
     FUZZY_USER(expected, input),
-  )
+  );
 
   if (response.score === -1) {
-    return { pass: false, score: -1, reasoning: response.reasoning, model, latencyMs }
+    return {
+      pass: false,
+      score: -1,
+      reasoning: response.reasoning,
+      model,
+      latencyMs,
+    };
   }
 
   return {
@@ -38,5 +44,5 @@ export async function evaluateFuzzy(
     reasoning: response.reasoning,
     model,
     latencyMs,
-  }
+  };
 }

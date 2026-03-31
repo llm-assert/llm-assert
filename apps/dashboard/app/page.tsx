@@ -4,5 +4,5 @@ export default function Home() {
       <h1>LLM Assert</h1>
       <p>Dashboard coming soon.</p>
     </main>
-  )
+  );
 }

@@ -1,6 +1,6 @@
-import { JudgeClient } from '../judge/client.js'
-import { SENTIMENT_SYSTEM, SENTIMENT_USER } from '../judge/prompts.js'
-import type { AssertionResult, JudgeConfig } from '../types.js'
+import { JudgeClient } from "../judge/client.js";
+import { SENTIMENT_SYSTEM, SENTIMENT_USER } from "../judge/prompts.js";
+import type { AssertionResult, JudgeConfig } from "../types.js";
 
 /**
  * Evaluate whether text matches a described tone/sentiment.
@@ -15,20 +15,26 @@ export async function evaluateSentiment(
     return {
       pass: false,
       score: 0,
-      reasoning: 'Empty input — cannot evaluate tone.',
-      model: 'none',
+      reasoning: "Empty input — cannot evaluate tone.",
+      model: "none",
       latencyMs: 0,
-    }
+    };
   }
 
-  const judge = new JudgeClient(config)
+  const judge = new JudgeClient(config);
   const { response, model, latencyMs } = await judge.evaluate(
     SENTIMENT_SYSTEM,
     SENTIMENT_USER(descriptor, input),
-  )
+  );
 
   if (response.score === -1) {
-    return { pass: false, score: -1, reasoning: response.reasoning, model, latencyMs }
+    return {
+      pass: false,
+      score: -1,
+      reasoning: response.reasoning,
+      model,
+      latencyMs,
+    };
   }
 
   return {
@@ -37,5 +43,5 @@ export async function evaluateSentiment(
     reasoning: response.reasoning,
     model,
     latencyMs,
-  }
+  };
 }

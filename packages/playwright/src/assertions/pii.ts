@@ -1,6 +1,6 @@
-import { JudgeClient } from '../judge/client.js'
-import { PII_SYSTEM, PII_USER } from '../judge/prompts.js'
-import type { AssertionResult, JudgeConfig } from '../types.js'
+import { JudgeClient } from "../judge/client.js";
+import { PII_SYSTEM, PII_USER } from "../judge/prompts.js";
+import type { AssertionResult, JudgeConfig } from "../types.js";
 
 /**
  * Evaluate whether text contains personally identifiable information.
@@ -14,20 +14,26 @@ export async function evaluatePII(
     return {
       pass: true,
       score: 1.0,
-      reasoning: 'Empty input — no PII possible.',
-      model: 'none',
+      reasoning: "Empty input — no PII possible.",
+      model: "none",
       latencyMs: 0,
-    }
+    };
   }
 
-  const judge = new JudgeClient(config)
+  const judge = new JudgeClient(config);
   const { response, model, latencyMs } = await judge.evaluate(
     PII_SYSTEM,
     PII_USER(input),
-  )
+  );
 
   if (response.score === -1) {
-    return { pass: false, score: -1, reasoning: response.reasoning, model, latencyMs }
+    return {
+      pass: false,
+      score: -1,
+      reasoning: response.reasoning,
+      model,
+      latencyMs,
+    };
   }
 
   return {
@@ -36,5 +42,5 @@ export async function evaluatePII(
     reasoning: response.reasoning,
     model,
     latencyMs,
-  }
+  };
 }
