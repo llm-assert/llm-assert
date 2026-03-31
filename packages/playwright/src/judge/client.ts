@@ -14,7 +14,7 @@ const DEFAULT_CONFIG: Required<Omit<JudgeConfig, 'openaiApiKey' | 'anthropicApiK
 export class JudgeClient {
   private config: Required<Omit<JudgeConfig, 'openaiApiKey' | 'anthropicApiKey'>>
   private openai: OpenAI | null
-  // TODO: Add Anthropic client when implementing fallback
+  // TODO(FEAT-11): Add Anthropic client when implementing fallback
 
   constructor(config: JudgeConfig = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config }
@@ -47,7 +47,7 @@ export class JudgeClient {
       }
     }
 
-    // TODO: Try fallback model (Anthropic Claude Haiku)
+    // TODO(FEAT-11): Try fallback model (Anthropic Claude Haiku)
 
     // Both providers failed — return inconclusive
     return {
