@@ -51,14 +51,14 @@ We use [Conventional Commits](https://www.conventionalcommits.org/). Commit mess
 
 ### Scopes
 
-| Scope | Covers |
-|-------|--------|
-| `playwright` | `packages/playwright/` — assertions, types, fixtures |
-| `judge` | `packages/playwright/src/judge/` — prompts, client, providers |
-| `dashboard` | `apps/dashboard/` — pages, components, layouts |
-| `db` | `supabase/migrations/` — schema, RLS policies |
-| `ci` | `.github/workflows/`, CI configuration |
-| `deps` | Dependency updates |
+| Scope        | Covers                                                        |
+| ------------ | ------------------------------------------------------------- |
+| `playwright` | `packages/playwright/` — assertions, types, fixtures          |
+| `judge`      | `packages/playwright/src/judge/` — prompts, client, providers |
+| `dashboard`  | `apps/dashboard/` — pages, components, layouts                |
+| `db`         | `supabase/migrations/` — schema, RLS policies                 |
+| `ci`         | `.github/workflows/`, CI configuration                        |
+| `deps`       | Dependency updates                                            |
 
 Scope is encouraged but not required. Commits without scope will show a warning.
 
