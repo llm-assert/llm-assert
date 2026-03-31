@@ -1,10 +1,17 @@
+# Dependencies
 node_modules/
+
+# Build output
 dist/
 .next/
-package-lock.json
+out/
+
+# TypeScript incremental build cache
+*.tsbuildinfo
 
 # Environment files (all variants except the example template)
 .env
+.env.local
 .env.*
 !.env.example
 
@@ -14,13 +21,22 @@ package-lock.json
 # Playwright test artifacts
 test-results/
 
+# Test coverage
+coverage/
+*.lcov
+
 # npm pack artifacts
 *.tgz
 
-# Claude Code (all local state)
+# ESLint cache
+.eslintcache
+
+# macOS
+.DS_Store
+
+# Claude Code (local state — settings.local.json, sessions, hooks, etc.)
 .claude/
 
 # Internal docs and workflow (not for public repo)
 docs/
 openspec/
-CLAUDE.md
