@@ -31,6 +31,9 @@ coverage/
 # ESLint cache
 .eslintcache
 
+# Supabase CLI local state
+supabase/.temp/
+
 # macOS
 .DS_Store
 
