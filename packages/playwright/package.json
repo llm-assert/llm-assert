@@ -1,0 +1,68 @@
+{
+  "name": "@llmassert/playwright",
+  "version": "0.1.0",
+  "description": "Playwright assertion matchers for testing LLM outputs — groundedness, PII, sentiment, schema, and fuzzy matching",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./reporter": {
+      "import": {
+        "types": "./dist/reporter.d.ts",
+        "default": "./dist/reporter.js"
+      },
+      "require": {
+        "types": "./dist/reporter.d.cts",
+        "default": "./dist/reporter.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "playwright test",
+    "lint": "eslint src/"
+  },
+  "peerDependencies": {
+    "@playwright/test": ">=1.40.0"
+  },
+  "dependencies": {
+    "openai": "^6.33.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@types/node": "^22",
+    "tsup": "^8.5.1",
+    "typescript": "^5.8"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "keywords": [
+    "playwright",
+    "llm",
+    "testing",
+    "assertions",
+    "ai",
+    "evaluation",
+    "groundedness",
+    "pii"
+  ],
+  "license": "MIT"
+}

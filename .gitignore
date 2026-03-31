@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.next/
+.env*.local
+package-lock.json
+
+# Claude Code local files
+.claude/*.local.md
+.claude/*.local.json
+.claude/sessions/
+.claude/hook-metrics.jsonl
+.claude/current-task.txt
+.claude/checkpoints.log
+.claude/distillation/
+.claude/retrospectives/state.json
