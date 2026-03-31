@@ -1,15 +1,26 @@
 node_modules/
 dist/
 .next/
-.env*.local
 package-lock.json
 
-# Claude Code local files
-.claude/*.local.md
-.claude/*.local.json
-.claude/sessions/
-.claude/hook-metrics.jsonl
-.claude/current-task.txt
-.claude/checkpoints.log
-.claude/distillation/
-.claude/retrospectives/state.json
+# Environment files (all variants except the example template)
+.env
+.env.*
+!.env.example
+
+# Turborepo cache
+.turbo/
+
+# Playwright test artifacts
+test-results/
+
+# npm pack artifacts
+*.tgz
+
+# Claude Code (all local state)
+.claude/
+
+# Internal docs and workflow (not for public repo)
+docs/
+openspec/
+CLAUDE.md

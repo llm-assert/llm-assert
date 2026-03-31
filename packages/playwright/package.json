@@ -64,5 +64,17 @@
     "groundedness",
     "pii"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/llm-assert/llm-assert.git",
+    "directory": "packages/playwright"
+  },
+  "homepage": "https://github.com/llm-assert/llm-assert/tree/main/packages/playwright#readme",
+  "bugs": {
+    "url": "https://github.com/llm-assert/llm-assert/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  }
 }
