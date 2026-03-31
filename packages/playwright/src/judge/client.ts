@@ -42,7 +42,7 @@ export class JudgeClient {
           model: this.config.primaryModel,
           latencyMs: Date.now() - start,
         }
-      } catch (error) {
+      } catch (_error) {
         // Primary failed — fall through to fallback
       }
     }

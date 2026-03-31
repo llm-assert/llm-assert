@@ -48,7 +48,7 @@ class LLMAssertReporter implements Reporter {
     // during assertion execution — collected here for batching
   }
 
-  async onEnd(result: FullResult) {
+  async onEnd(_result: FullResult) {
     if (!this.config.apiKey) {
       // No API key — local-only mode, skip ingestion silently
       return
