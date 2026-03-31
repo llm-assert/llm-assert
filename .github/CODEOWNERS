@@ -1,5 +1,15 @@
-# Security-sensitive paths — require review before merge
-/packages/playwright/src/judge/     @Cporter97
-/supabase/migrations/               @Cporter97
-/.github/workflows/publish.yml      @Cporter97
-/.github/workflows/ci.yml           @Cporter97
+# CODEOWNERS — llm-assert
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# Order matters — last matching pattern takes precedence.
+# These paths require review before merge due to security
+# or supply-chain implications.
+
+# Judge prompts and client (affects evaluation semantics)
+/packages/playwright/src/judge/ @Cporter97
+
+# Database migrations (RLS policies are security-critical)
+/supabase/migrations/ @Cporter97
+
+# CI/CD and publish workflows (supply chain)
+/.github/workflows/ @Cporter97
