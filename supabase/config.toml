@@ -153,7 +153,7 @@ enabled = true
 # in emails.
 site_url = "http://localhost:3000"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["https://127.0.0.1:3000"]
+additional_redirect_urls = ["https://127.0.0.1:3000", "http://localhost:3000/auth/callback"]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to the local API URL (http://127.0.0.1:<port>/auth/v1).
@@ -206,7 +206,7 @@ enable_signup = true
 # addresses. If disabled, only the new email is required to confirm.
 double_confirm_changes = true
 # If enabled, users need to confirm their email address before signing in.
-enable_confirmations = false
+enable_confirmations = true
 # If enabled, users will need to reauthenticate or have logged in recently to change their password.
 secure_password_change = false
 # Controls the minimum amount of time that must pass before sending another signup confirmation or password reset email.
@@ -216,15 +216,20 @@ otp_length = 6
 # Number of seconds before the email OTP expires (defaults to 1 hour).
 otp_expiry = 3600
 
-# Use a production-ready SMTP server
+# Production SMTP via Resend — Setup steps:
+# 1. Create account at https://resend.com
+# 2. Add and verify your domain
+# 3. Create an API key
+# 4. In Supabase Dashboard → Authentication → SMTP Settings: enable custom SMTP
+#    - Host: smtp.resend.com, Port: 465, User: resend, Pass: <your-api-key>
 # [auth.email.smtp]
 # enabled = true
-# host = "smtp.sendgrid.net"
-# port = 587
-# user = "apikey"
-# pass = "env(SENDGRID_API_KEY)"
-# admin_email = "admin@email.com"
-# sender_name = "Admin"
+# host = "smtp.resend.com"
+# port = 465
+# user = "resend"
+# pass = "env(RESEND_API_KEY)"
+# admin_email = "noreply@llmassert.com"
+# sender_name = "LLMAssert"
 
 # Uncomment to customize email template
 # [auth.email.template.invite]
@@ -302,6 +307,22 @@ max_frequency = "5s"
 # Use an external OAuth provider. The full list of providers are: `apple`, `azure`, `bitbucket`,
 # `discord`, `facebook`, `github`, `gitlab`, `google`, `keycloak`, `linkedin_oidc`, `notion`, `twitch`,
 # `twitter`, `x`, `slack`, `spotify`, `workos`, `zoom`.
+# GitHub OAuth — Setup steps:
+# 1. Create OAuth App at https://github.com/settings/developers
+#    - Homepage URL: http://localhost:3000 (dev) or https://llmassert.com (prod)
+#    - Callback URL: <your-supabase-url>/auth/v1/callback
+# 2. Copy Client ID and Client Secret to .env.local as GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET
+# 3. In Supabase Dashboard → Authentication → Providers → GitHub: enable and paste credentials
+# 4. For production: add https://llmassert.com/auth/callback to Supabase Dashboard → URL Configuration → Redirect URLs
+[auth.external.github]
+enabled = true
+client_id = "env(GITHUB_CLIENT_ID)"
+secret = "env(GITHUB_CLIENT_SECRET)"
+redirect_uri = ""
+url = ""
+skip_nonce_check = false
+email_optional = false
+
 [auth.external.apple]
 enabled = false
 client_id = ""
