@@ -16,7 +16,7 @@ pnpm install
 pnpm run build
 
 # Run the dashboard locally
-pnpm run dev --filter @llmassert/dashboard
+pnpm --filter @llmassert/dashboard dev
 ```
 
 ## Branch Naming
