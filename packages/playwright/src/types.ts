@@ -77,6 +77,16 @@ export interface EvaluationRecord {
   threshold: number;
 }
 
+/** Fixture options configurable via playwright.config.ts use: { judgeConfig: {...} } */
+export interface LLMAssertOptions {
+  judgeConfig: Partial<JudgeConfig>;
+}
+
+/** Test fixture exposing resolved judge configuration */
+export interface LLMAssertFixture {
+  readonly judgeConfig: JudgeConfig;
+}
+
 /** Payload sent to POST /api/ingest */
 export interface IngestPayload {
   project_slug: string;
