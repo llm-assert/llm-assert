@@ -23,7 +23,8 @@ jobs:
           cache: pnpm
           registry-url: https://registry.npmjs.org/
       - run: pnpm install --frozen-lockfile
-      - run: pnpm run build
+      - name: Build playwright package
+        run: pnpm --filter @llmassert/playwright run build
       - name: Verify package contents
         working-directory: packages/playwright
         run: pnpm pack --dry-run
