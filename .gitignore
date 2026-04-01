@@ -46,3 +46,4 @@ openspec/
 
 # Vercel
 .vercel
+.env*.local

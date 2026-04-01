@@ -1,30 +1,13 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { publicEnv } from "@/lib/env";
 
 export async function createClient() {
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    throw new Error("NEXT_PUBLIC_SUPABASE_URL is not set.");
-  }
-
-  if (!process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
-    throw new Error("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY is not set.");
-  }
-
-  if (
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.includes("service_role")
-  ) {
-    throw new Error(
-      "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY contains 'service_role'. " +
-        "This is the service role key — it must NOT be used as the publishable key. " +
-        "Use the anon/publishable key instead.",
-    );
-  }
-
   const cookieStore = await cookies();
 
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    publicEnv.NEXT_PUBLIC_SUPABASE_URL,
+    publicEnv.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
     {
       cookies: {
         getAll() {
