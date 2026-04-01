@@ -43,3 +43,6 @@ supabase/.temp/
 # Internal docs and workflow (not for public repo)
 docs/
 openspec/
+
+# Vercel
+.vercel
