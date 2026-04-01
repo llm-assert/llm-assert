@@ -32,10 +32,10 @@ export async function evaluateGroundedness(
   );
 
   // Inconclusive — judge unavailable
-  if (response.score === -1) {
+  if (response.score === null) {
     return {
       pass: false,
-      score: -1,
+      score: null,
       reasoning: response.reasoning,
       model,
       latencyMs,

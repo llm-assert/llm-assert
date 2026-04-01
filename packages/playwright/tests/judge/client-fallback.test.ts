@@ -64,7 +64,7 @@ test.describe("JudgeClient fallback chain", () => {
     ]);
 
     const result = await client.evaluate("system", "user");
-    expect(result.response.score).toBe(-1);
+    expect(result.response.score).toBeNull();
     expect(result.model).toBe("none");
     expect(result.fallbackUsed).toBe(false);
   });

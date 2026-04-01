@@ -85,8 +85,24 @@ test.describe("Reporter attachment parsing", () => {
     expect(errors.some((e) => e.includes("[LLMAssert] Warning:"))).toBe(true);
   });
 
-  test("accepts score of -1 (inconclusive)", () => {
+  test("accepts score of null (inconclusive)", () => {
     const reporter = createReporter();
+    reporter.begin();
+    reporter.onTestEnd(
+      makeTestCase("test"),
+      makeTestResultWithEval({
+        ...validEvalData,
+        score: null,
+        result: "inconclusive",
+      }),
+    );
+    const evals = reporter.getEvaluations();
+    expect(evals).toHaveLength(1);
+    expect(evals[0].score).toBeNull();
+  });
+
+  test("rejects score of -1 as invalid", () => {
+    const reporter = createReporter({ onError: "silent" });
     reporter.begin();
     reporter.onTestEnd(
       makeTestCase("test"),
@@ -96,8 +112,6 @@ test.describe("Reporter attachment parsing", () => {
         result: "inconclusive",
       }),
     );
-    const evals = reporter.getEvaluations();
-    expect(evals).toHaveLength(1);
-    expect(evals[0].score).toBe(-1);
+    expect(reporter.getEvaluations()).toHaveLength(0);
   });
 });

@@ -2,15 +2,15 @@
 export interface AssertionResult {
   /** Whether the assertion passed */
   pass: boolean;
-  /** Numeric score from 0.0 (worst) to 1.0 (best) */
-  score: number;
+  /** Numeric score from 0.0 (worst) to 1.0 (best), or null if inconclusive */
+  score: number | null;
   /** Judge model's explanation of the score */
   reasoning: string;
 }
 
 /** Judge model response shape — all prompts request this format */
 export interface JudgeResponse {
-  score: number;
+  score: number | null;
   reasoning: string;
 }
 
@@ -68,7 +68,7 @@ export interface EvaluationRecord {
   contextText?: string;
   expectedValue?: string;
   result: EvaluationResult;
-  score: number;
+  score: number | null;
   reasoning: string;
   judgeModel: string;
   judgeLatencyMs: number;
@@ -108,7 +108,7 @@ export interface IngestPayload {
     context_text?: string;
     expected_value?: string;
     result: EvaluationResult;
-    score: number;
+    score: number | null;
     reasoning: string;
     judge_model: string;
     judge_latency_ms: number;

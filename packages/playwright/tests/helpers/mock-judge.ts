@@ -2,7 +2,7 @@ import type { JudgeEvaluator } from "../../src/judge/client.js";
 import type { JudgeResponse } from "../../src/types.js";
 
 interface MockJudgeOptions {
-  score: number;
+  score: number | null;
   reasoning?: string;
   model?: string;
   latencyMs?: number;
@@ -39,5 +39,5 @@ export function mockFailingJudge(): JudgeEvaluator {
 }
 
 export function mockInconclusiveJudge(): JudgeEvaluator {
-  return createMockJudge({ score: -1, reasoning: "Mock inconclusive" });
+  return createMockJudge({ score: null, reasoning: "Mock inconclusive" });
 }

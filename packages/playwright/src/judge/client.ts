@@ -107,7 +107,7 @@ export class JudgeClient implements JudgeEvaluator {
     // fallbackUsed is false: no provider produced a result
     return {
       response: {
-        score: -1,
+        score: null,
         reasoning: "All judge providers unavailable. Marked as inconclusive.",
       },
       model: "none",

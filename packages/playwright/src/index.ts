@@ -37,8 +37,8 @@ async function attachEvaluation(
 }
 
 /** Map judge score to explicit result enum */
-function mapResult(score: number, pass: boolean): EvaluationResult {
-  return score === -1 ? "inconclusive" : pass ? "pass" : "fail";
+function mapResult(score: number | null, pass: boolean): EvaluationResult {
+  return score === null ? "inconclusive" : pass ? "pass" : "fail";
 }
 
 /** Extended expect with LLMAssert matchers */
@@ -58,7 +58,7 @@ export const expect = baseExpect.extend({
       client,
     );
     const threshold = options?.threshold ?? 0.7;
-    const pass = result.score >= threshold && result.score !== -1;
+    const pass = result.score !== null && result.score >= threshold;
 
     await attachEvaluation({
       assertionType: "groundedness",
@@ -96,7 +96,7 @@ export const expect = baseExpect.extend({
       : (getWorkerJudgeClient() ?? undefined);
     const result = await evaluatePII(input, options?.config, client);
     const threshold = options?.threshold ?? 0.7;
-    const pass = result.score >= threshold && result.score !== -1;
+    const pass = result.score !== null && result.score >= threshold;
 
     await attachEvaluation({
       assertionType: "pii",
@@ -139,7 +139,7 @@ export const expect = baseExpect.extend({
       client,
     );
     const threshold = options?.threshold ?? 0.7;
-    const pass = result.score >= threshold && result.score !== -1;
+    const pass = result.score !== null && result.score >= threshold;
 
     await attachEvaluation({
       assertionType: "sentiment",
@@ -177,7 +177,7 @@ export const expect = baseExpect.extend({
       : (getWorkerJudgeClient() ?? undefined);
     const result = await evaluateSchema(input, schema, options?.config, client);
     const threshold = options?.threshold ?? 0.7;
-    const pass = result.score >= threshold && result.score !== -1;
+    const pass = result.score !== null && result.score >= threshold;
 
     await attachEvaluation({
       assertionType: "schema",
@@ -221,7 +221,7 @@ export const expect = baseExpect.extend({
       options?.config,
       client,
     );
-    const pass = result.score >= threshold && result.score !== -1;
+    const pass = result.score !== null && result.score >= threshold;
 
     await attachEvaluation({
       assertionType: "fuzzy",

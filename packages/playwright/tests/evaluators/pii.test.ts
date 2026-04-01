@@ -35,14 +35,14 @@ test.describe("evaluatePII", () => {
     expect(result.model).toBe("none");
   });
 
-  test("returns fail for inconclusive (score -1)", async () => {
+  test("returns fail for inconclusive (score null)", async () => {
     const result = await evaluatePII(
       "text",
       undefined,
       mockInconclusiveJudge(),
     );
     expect(result.pass).toBe(false);
-    expect(result.score).toBe(-1);
+    expect(result.score).toBeNull();
   });
 
   test("propagates response fields from judge", async () => {

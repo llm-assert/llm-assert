@@ -41,7 +41,7 @@ test.describe("evaluateFuzzy", () => {
     expect(result.latencyMs).toBe(0);
   });
 
-  test("returns fail for inconclusive (score -1)", async () => {
+  test("returns fail for inconclusive (score null)", async () => {
     const result = await evaluateFuzzy(
       "hello",
       "hi",
@@ -50,7 +50,7 @@ test.describe("evaluateFuzzy", () => {
       mockInconclusiveJudge(),
     );
     expect(result.pass).toBe(false);
-    expect(result.score).toBe(-1);
+    expect(result.score).toBeNull();
   });
 
   test("propagates model and latency from judge", async () => {
