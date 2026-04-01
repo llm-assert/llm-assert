@@ -5,6 +5,11 @@ export const metadata: Metadata = {
   title: "Sign In — LLMAssert",
 };
 
-export default function SignInPage() {
-  return <SignInForm />;
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
+  const { next } = await searchParams;
+  return <SignInForm next={next} />;
 }
