@@ -37,7 +37,7 @@ test.describe("evaluateGroundedness", () => {
     expect(result.model).toBe("none");
   });
 
-  test("returns fail for inconclusive (score -1)", async () => {
+  test("returns fail for inconclusive (score null)", async () => {
     const result = await evaluateGroundedness(
       "text",
       "context",
@@ -45,7 +45,7 @@ test.describe("evaluateGroundedness", () => {
       mockInconclusiveJudge(),
     );
     expect(result.pass).toBe(false);
-    expect(result.score).toBe(-1);
+    expect(result.score).toBeNull();
   });
 
   test("propagates response fields from judge", async () => {

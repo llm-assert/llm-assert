@@ -40,8 +40,8 @@ function parseEvaluationAttachment(
   const d = data as Record<string, unknown>;
 
   // Validate required fields and types
-  if (typeof d.score !== "number") return null;
-  if (!((d.score >= 0 && d.score <= 1) || d.score === -1)) return null;
+  if (d.score !== null && typeof d.score !== "number") return null;
+  if (d.score !== null && (d.score < 0 || d.score > 1)) return null;
   if (typeof d.reasoning !== "string" || d.reasoning.length === 0) return null;
   if (!VALID_ASSERTION_TYPES.includes(d.assertionType as AssertionType))
     return null;
@@ -58,7 +58,7 @@ function parseEvaluationAttachment(
       typeof d.expectedValue === "string" ? d.expectedValue : undefined,
     threshold: d.threshold as number,
     result: d.result as EvaluationResult,
-    score: d.score as number,
+    score: d.score as number | null,
     reasoning: d.reasoning as string,
     judgeModel: d.judgeModel as string,
     judgeLatencyMs: d.judgeLatencyMs as number,
