@@ -9,6 +9,7 @@ import type { AssertionResult, JudgeConfig } from "../types.js";
 export async function evaluatePII(
   input: string,
   config?: JudgeConfig,
+  client?: JudgeClient,
 ): Promise<AssertionResult & { model: string; latencyMs: number }> {
   if (!input || input.trim().length === 0) {
     return {
@@ -20,7 +21,7 @@ export async function evaluatePII(
     };
   }
 
-  const judge = new JudgeClient(config);
+  const judge = client ?? new JudgeClient(config);
   const { response, model, latencyMs } = await judge.evaluate(
     PII_SYSTEM,
     PII_USER(input),

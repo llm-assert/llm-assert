@@ -4,6 +4,7 @@ import { evaluatePII } from "./assertions/pii.js";
 import { evaluateSentiment } from "./assertions/sentiment.js";
 import { evaluateSchema } from "./assertions/schema.js";
 import { evaluateFuzzy } from "./assertions/fuzzy.js";
+import { getWorkerJudgeClient } from "./singleton.js";
 import type {
   EvaluationRecord,
   EvaluationResult,
@@ -15,6 +16,8 @@ export type {
   JudgeConfig,
   ReporterConfig,
   EvaluationRecord,
+  LLMAssertFixture,
+  LLMAssertOptions,
 } from "./types.js";
 export { JudgeClient } from "./judge/client.js";
 
@@ -45,7 +48,15 @@ export const expect = baseExpect.extend({
     context: string,
     options?: { threshold?: number; config?: JudgeConfig },
   ) {
-    const result = await evaluateGroundedness(input, context, options?.config);
+    const client = options?.config
+      ? undefined
+      : (getWorkerJudgeClient() ?? undefined);
+    const result = await evaluateGroundedness(
+      input,
+      context,
+      options?.config,
+      client,
+    );
     const threshold = options?.threshold ?? 0.7;
     const pass = result.score >= threshold && result.score !== -1;
 
@@ -79,7 +90,10 @@ export const expect = baseExpect.extend({
     input: string,
     options?: { threshold?: number; config?: JudgeConfig },
   ) {
-    const result = await evaluatePII(input, options?.config);
+    const client = options?.config
+      ? undefined
+      : (getWorkerJudgeClient() ?? undefined);
+    const result = await evaluatePII(input, options?.config, client);
     const threshold = options?.threshold ?? 0.7;
     const pass = result.score >= threshold && result.score !== -1;
 
@@ -113,7 +127,15 @@ export const expect = baseExpect.extend({
     descriptor: string,
     options?: { threshold?: number; config?: JudgeConfig },
   ) {
-    const result = await evaluateSentiment(input, descriptor, options?.config);
+    const client = options?.config
+      ? undefined
+      : (getWorkerJudgeClient() ?? undefined);
+    const result = await evaluateSentiment(
+      input,
+      descriptor,
+      options?.config,
+      client,
+    );
     const threshold = options?.threshold ?? 0.7;
     const pass = result.score >= threshold && result.score !== -1;
 
@@ -147,7 +169,10 @@ export const expect = baseExpect.extend({
     schema: string,
     options?: { threshold?: number; config?: JudgeConfig },
   ) {
-    const result = await evaluateSchema(input, schema, options?.config);
+    const client = options?.config
+      ? undefined
+      : (getWorkerJudgeClient() ?? undefined);
+    const result = await evaluateSchema(input, schema, options?.config, client);
     const threshold = options?.threshold ?? 0.7;
     const pass = result.score >= threshold && result.score !== -1;
 
@@ -182,11 +207,15 @@ export const expect = baseExpect.extend({
     options?: { threshold?: number; config?: JudgeConfig },
   ) {
     const threshold = options?.threshold ?? 0.7;
+    const client = options?.config
+      ? undefined
+      : (getWorkerJudgeClient() ?? undefined);
     const result = await evaluateFuzzy(
       input,
       expected,
       threshold,
       options?.config,
+      client,
     );
     const pass = result.score >= threshold && result.score !== -1;
 
@@ -216,10 +245,10 @@ export const expect = baseExpect.extend({
   },
 });
 
-/** Re-export test for convenience */
-export { baseTest as test };
+/** Re-export fixture-extended test */
+export { test } from "./fixtures.js";
 
-/** TypeScript augmentation for custom matchers */
+/** TypeScript augmentation for custom matchers and worker options */
 declare module "@playwright/test" {
   interface Matchers<R> {
     toBeGroundedIn(

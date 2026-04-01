@@ -26,6 +26,16 @@
         "types": "./dist/reporter.d.cts",
         "default": "./dist/reporter.cjs"
       }
+    },
+    "./fixtures": {
+      "import": {
+        "types": "./dist/fixtures.d.ts",
+        "default": "./dist/fixtures.js"
+      },
+      "require": {
+        "types": "./dist/fixtures.d.cts",
+        "default": "./dist/fixtures.cjs"
+      }
     }
   },
   "files": [

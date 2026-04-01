@@ -10,6 +10,7 @@ export async function evaluateSchema(
   input: string,
   schema: string,
   config?: JudgeConfig,
+  client?: JudgeClient,
 ): Promise<AssertionResult & { model: string; latencyMs: number }> {
   if (!input || input.trim().length === 0) {
     return {
@@ -21,7 +22,7 @@ export async function evaluateSchema(
     };
   }
 
-  const judge = new JudgeClient(config);
+  const judge = client ?? new JudgeClient(config);
   const { response, model, latencyMs } = await judge.evaluate(
     SCHEMA_SYSTEM,
     SCHEMA_USER(schema, input),
