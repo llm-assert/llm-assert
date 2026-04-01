@@ -1,3 +1,4 @@
+/* eslint-disable no-console -- CLI script, console is the correct output mechanism */
 /**
  * Verify that Stripe products, prices, and metadata match the plan config.
  *
