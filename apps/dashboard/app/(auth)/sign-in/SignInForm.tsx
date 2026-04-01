@@ -15,7 +15,11 @@ import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
 import { signInWithPassword } from "./actions";
 
-export function SignInForm() {
+interface SignInFormProps {
+  next?: string;
+}
+
+export function SignInForm({ next }: SignInFormProps) {
   const [state, formAction, isPending] = useActionState(
     signInWithPassword,
     null,
@@ -28,7 +32,7 @@ export function SignInForm() {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "github",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${window.location.origin}/auth/callback${next ? `?next=${encodeURIComponent(next)}` : ""}`,
       },
     });
     if (error) {
@@ -77,6 +81,7 @@ export function SignInForm() {
         </div>
 
         <form action={formAction} className="space-y-4">
+          {next && <input type="hidden" name="next" value={next} />}
           {state?.error && (
             <div
               role="alert"
@@ -117,7 +122,9 @@ export function SignInForm() {
         <p className="text-center text-sm text-muted-foreground">
           Don&apos;t have an account?{" "}
           <Link
-            href="/sign-up"
+            href={
+              next ? `/sign-up?next=${encodeURIComponent(next)}` : "/sign-up"
+            }
             className="text-primary underline-offset-4 hover:underline"
           >
             Sign up

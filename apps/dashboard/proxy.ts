@@ -38,7 +38,43 @@ export async function proxy(request: NextRequest) {
   // Refresh the session. This calls getUser() which validates the JWT
   // server-side and refreshes the token if expired.
   // Do NOT use getSession() — it does not validate the JWT.
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { pathname } = request.nextUrl;
+
+  // Public paths that don't require authentication
+  const isPublicPath =
+    pathname.startsWith("/sign-in") ||
+    pathname.startsWith("/sign-up") ||
+    pathname.startsWith("/auth/callback");
+  const isApiPath = pathname.startsWith("/api/");
+
+  // Redirect unauthenticated users to sign-in (defense in depth)
+  if (!user && !isPublicPath && !isApiPath) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = "/sign-in";
+    redirectUrl.searchParams.set("next", pathname);
+    const redirectResponse = NextResponse.redirect(redirectUrl);
+    // Preserve Supabase cookies on the redirect response
+    supabaseResponse.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie.name, cookie.value);
+    });
+    return redirectResponse;
+  }
+
+  // Redirect authenticated users away from auth pages
+  if (user && isPublicPath && !pathname.startsWith("/auth/callback")) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = "/";
+    redirectUrl.search = "";
+    const redirectResponse = NextResponse.redirect(redirectUrl);
+    supabaseResponse.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie.name, cookie.value);
+    });
+    return redirectResponse;
+  }
 
   return supabaseResponse;
 }

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { validateNextUrl } from "@/lib/utils";
 
 export async function signInWithPassword(
   _prevState: { error: string } | null,
@@ -10,6 +11,7 @@ export async function signInWithPassword(
 ) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
+  const next = formData.get("next") as string | null;
 
   if (!email || !password) {
     return { error: "Email and password are required." };
@@ -27,5 +29,5 @@ export async function signInWithPassword(
   }
 
   revalidatePath("/", "layout");
-  redirect("/");
+  redirect(validateNextUrl(next));
 }

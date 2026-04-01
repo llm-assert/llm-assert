@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
-export default async function AuthLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -11,13 +11,13 @@ export default async function AuthLayout({
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (user) {
-    redirect("/");
+  if (!user) {
+    redirect("/sign-in");
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-sm">{children}</div>
+    <div className="flex min-h-screen">
+      <main className="flex-1">{children}</main>
     </div>
   );
 }

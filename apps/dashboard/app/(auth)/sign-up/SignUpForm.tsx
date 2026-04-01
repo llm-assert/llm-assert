@@ -15,7 +15,11 @@ import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
 import { signUp } from "./actions";
 
-export function SignUpForm() {
+interface SignUpFormProps {
+  next?: string;
+}
+
+export function SignUpForm({ next }: SignUpFormProps) {
   const [state, formAction, isPending] = useActionState(signUp, null);
   const [oauthLoading, setOauthLoading] = useState(false);
 
@@ -25,7 +29,7 @@ export function SignUpForm() {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "github",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${window.location.origin}/auth/callback${next ? `?next=${encodeURIComponent(next)}` : ""}`,
       },
     });
     if (error) {
@@ -51,7 +55,9 @@ export function SignUpForm() {
           <p className="text-center text-sm text-muted-foreground">
             Already confirmed?{" "}
             <Link
-              href="/sign-in"
+              href={
+                next ? `/sign-in?next=${encodeURIComponent(next)}` : "/sign-in"
+              }
               className="text-primary underline-offset-4 hover:underline"
             >
               Sign in
@@ -99,6 +105,7 @@ export function SignUpForm() {
         </div>
 
         <form action={formAction} className="space-y-4">
+          {next && <input type="hidden" name="next" value={next} />}
           {state?.error && (
             <div
               role="alert"
@@ -143,7 +150,9 @@ export function SignUpForm() {
         <p className="text-center text-sm text-muted-foreground">
           Already have an account?{" "}
           <Link
-            href="/sign-in"
+            href={
+              next ? `/sign-in?next=${encodeURIComponent(next)}` : "/sign-in"
+            }
             className="text-primary underline-offset-4 hover:underline"
           >
             Sign in
