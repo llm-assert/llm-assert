@@ -73,6 +73,8 @@ export interface EvaluationRecord {
   judgeModel: string;
   judgeLatencyMs: number;
   judgeCostUsd?: number;
+  /** Effective pass/fail threshold used by the matcher */
+  threshold: number;
 }
 
 /** Payload sent to POST /api/ingest */
@@ -99,5 +101,6 @@ export interface IngestPayload {
     judge_model: string;
     judge_latency_ms: number;
     judge_cost_usd?: number;
+    threshold: number;
   }>;
 }

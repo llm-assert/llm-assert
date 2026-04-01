@@ -4,7 +4,11 @@ import { evaluatePII } from "./assertions/pii.js";
 import { evaluateSentiment } from "./assertions/sentiment.js";
 import { evaluateSchema } from "./assertions/schema.js";
 import { evaluateFuzzy } from "./assertions/fuzzy.js";
-import type { JudgeConfig } from "./types.js";
+import type {
+  EvaluationRecord,
+  EvaluationResult,
+  JudgeConfig,
+} from "./types.js";
 
 export type {
   AssertionResult,
@@ -13,6 +17,26 @@ export type {
   EvaluationRecord,
 } from "./types.js";
 export { JudgeClient } from "./judge/client.js";
+
+/** Attach evaluation data for the reporter to collect via result.attachments */
+async function attachEvaluation(
+  record: Omit<EvaluationRecord, "testName" | "testFile">,
+): Promise<void> {
+  try {
+    await baseTest.info().attach("llmassert-eval", {
+      body: JSON.stringify(record),
+      contentType: "application/json",
+    });
+  } catch {
+    // Outside test context — skip attachment silently.
+    // Evaluation still runs; only dashboard reporting is affected.
+  }
+}
+
+/** Map judge score to explicit result enum */
+function mapResult(score: number, pass: boolean): EvaluationResult {
+  return score === -1 ? "inconclusive" : pass ? "pass" : "fail";
+}
 
 /** Extended expect with LLMAssert matchers */
 export const expect = baseExpect.extend({
@@ -24,6 +48,19 @@ export const expect = baseExpect.extend({
     const result = await evaluateGroundedness(input, context, options?.config);
     const threshold = options?.threshold ?? 0.7;
     const pass = result.score >= threshold && result.score !== -1;
+
+    await attachEvaluation({
+      assertionType: "groundedness",
+      inputText: input,
+      contextText: context,
+      expectedValue: `score >= ${threshold}`,
+      threshold,
+      result: mapResult(result.score, pass),
+      score: result.score,
+      reasoning: result.reasoning,
+      judgeModel: result.model,
+      judgeLatencyMs: result.latencyMs,
+    });
 
     return {
       pass,
@@ -45,6 +82,18 @@ export const expect = baseExpect.extend({
     const result = await evaluatePII(input, options?.config);
     const threshold = options?.threshold ?? 0.7;
     const pass = result.score >= threshold && result.score !== -1;
+
+    await attachEvaluation({
+      assertionType: "pii",
+      inputText: input,
+      expectedValue: `score >= ${threshold}`,
+      threshold,
+      result: mapResult(result.score, pass),
+      score: result.score,
+      reasoning: result.reasoning,
+      judgeModel: result.model,
+      judgeLatencyMs: result.latencyMs,
+    });
 
     return {
       pass,
@@ -68,6 +117,18 @@ export const expect = baseExpect.extend({
     const threshold = options?.threshold ?? 0.7;
     const pass = result.score >= threshold && result.score !== -1;
 
+    await attachEvaluation({
+      assertionType: "sentiment",
+      inputText: input,
+      expectedValue: descriptor,
+      threshold,
+      result: mapResult(result.score, pass),
+      score: result.score,
+      reasoning: result.reasoning,
+      judgeModel: result.model,
+      judgeLatencyMs: result.latencyMs,
+    });
+
     return {
       pass,
       message: () =>
@@ -89,6 +150,18 @@ export const expect = baseExpect.extend({
     const result = await evaluateSchema(input, schema, options?.config);
     const threshold = options?.threshold ?? 0.7;
     const pass = result.score >= threshold && result.score !== -1;
+
+    await attachEvaluation({
+      assertionType: "schema",
+      inputText: input,
+      expectedValue: schema,
+      threshold,
+      result: mapResult(result.score, pass),
+      score: result.score,
+      reasoning: result.reasoning,
+      judgeModel: result.model,
+      judgeLatencyMs: result.latencyMs,
+    });
 
     return {
       pass,
@@ -116,6 +189,18 @@ export const expect = baseExpect.extend({
       options?.config,
     );
     const pass = result.score >= threshold && result.score !== -1;
+
+    await attachEvaluation({
+      assertionType: "fuzzy",
+      inputText: input,
+      expectedValue: expected,
+      threshold,
+      result: mapResult(result.score, pass),
+      score: result.score,
+      reasoning: result.reasoning,
+      judgeModel: result.model,
+      judgeLatencyMs: result.latencyMs,
+    });
 
     return {
       pass,
