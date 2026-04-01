@@ -5,6 +5,19 @@ import {
   createAnthropicProvider,
 } from "./providers.js";
 
+/** Minimal interface for judge evaluation — enables clean mocking in tests */
+export interface JudgeEvaluator {
+  evaluate(
+    systemPrompt: string,
+    userPrompt: string,
+  ): Promise<{
+    response: JudgeResponse;
+    model: string;
+    latencyMs: number;
+    fallbackUsed: boolean;
+  }>;
+}
+
 export const DEFAULT_CONFIG: Required<
   Omit<JudgeConfig, "openaiApiKey" | "anthropicApiKey">
 > = {
@@ -17,7 +30,7 @@ export const DEFAULT_CONFIG: Required<
  * Provider-agnostic judge client with fallback chain.
  * GPT-5.4-mini → Claude Haiku → inconclusive
  */
-export class JudgeClient {
+export class JudgeClient implements JudgeEvaluator {
   private config: Required<
     Omit<JudgeConfig, "openaiApiKey" | "anthropicApiKey">
   >;

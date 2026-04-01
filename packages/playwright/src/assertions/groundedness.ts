@@ -1,4 +1,4 @@
-import { JudgeClient } from "../judge/client.js";
+import { JudgeClient, type JudgeEvaluator } from "../judge/client.js";
 import { GROUNDEDNESS_SYSTEM, GROUNDEDNESS_USER } from "../judge/prompts.js";
 import type { AssertionResult, JudgeConfig } from "../types.js";
 
@@ -10,7 +10,7 @@ export async function evaluateGroundedness(
   input: string,
   context: string,
   config?: JudgeConfig,
-  client?: JudgeClient,
+  client?: JudgeEvaluator,
 ): Promise<
   AssertionResult & { model: string; latencyMs: number; fallbackUsed: boolean }
 > {

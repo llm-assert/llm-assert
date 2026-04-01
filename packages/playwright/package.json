@@ -45,7 +45,7 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
-    "test": "playwright test",
+    "test": "playwright test --config tests/playwright.config.ts",
     "lint": "eslint src/"
   },
   "peerDependencies": {
