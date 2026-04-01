@@ -5,7 +5,11 @@ import {
   makeTestResultWithEval,
   validEvalData,
 } from "../helpers/mock-reporter.js";
-import { mockFetch, getFetchCalls, restoreFetch } from "../helpers/mock-fetch.js";
+import {
+  mockFetch,
+  getFetchCalls,
+  restoreFetch,
+} from "../helpers/mock-fetch.js";
 
 test.afterEach(() => {
   restoreFetch();
@@ -22,7 +26,10 @@ test.describe("Reporter CI detection", () => {
 
     const reporter = createReporter({ apiKey: "sk-test-mock" });
     reporter.begin();
-    reporter.onTestEnd(makeTestCase("test"), makeTestResultWithEval(validEvalData));
+    reporter.onTestEnd(
+      makeTestCase("test"),
+      makeTestResultWithEval(validEvalData),
+    );
     await reporter.end();
 
     const body = JSON.parse(getFetchCalls()[0].init?.body as string);
@@ -37,7 +44,10 @@ test.describe("Reporter CI detection", () => {
 
     const reporter = createReporter(); // No apiKey
     reporter.begin();
-    reporter.onTestEnd(makeTestCase("test"), makeTestResultWithEval(validEvalData));
+    reporter.onTestEnd(
+      makeTestCase("test"),
+      makeTestResultWithEval(validEvalData),
+    );
     await reporter.end();
 
     expect(getFetchCalls()).toHaveLength(0);

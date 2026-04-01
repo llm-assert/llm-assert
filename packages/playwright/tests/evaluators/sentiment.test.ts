@@ -56,7 +56,12 @@ test.describe("evaluateSentiment", () => {
       latencyMs: 30,
       fallbackUsed: true,
     });
-    const result = await evaluateSentiment("kind words", "empathetic", undefined, judge);
+    const result = await evaluateSentiment(
+      "kind words",
+      "empathetic",
+      undefined,
+      judge,
+    );
     expect(result.reasoning).toBe("Tone is empathetic");
     expect(result.fallbackUsed).toBe(true);
   });

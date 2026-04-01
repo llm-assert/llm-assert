@@ -21,7 +21,10 @@ test.describe("Reporter error modes", () => {
       onError: "throw",
     });
     reporter.begin();
-    reporter.onTestEnd(makeTestCase("test"), makeTestResultWithEval(validEvalData));
+    reporter.onTestEnd(
+      makeTestCase("test"),
+      makeTestResultWithEval(validEvalData),
+    );
 
     await expect(reporter.end()).rejects.toThrow("[LLMAssert]");
   });
@@ -39,7 +42,10 @@ test.describe("Reporter error modes", () => {
       onError: "warn",
     });
     reporter.begin();
-    reporter.onTestEnd(makeTestCase("test"), makeTestResultWithEval(validEvalData));
+    reporter.onTestEnd(
+      makeTestCase("test"),
+      makeTestResultWithEval(validEvalData),
+    );
     await reporter.end();
 
     console.error = origError;
@@ -59,7 +65,10 @@ test.describe("Reporter error modes", () => {
       onError: "silent",
     });
     reporter.begin();
-    reporter.onTestEnd(makeTestCase("test"), makeTestResultWithEval(validEvalData));
+    reporter.onTestEnd(
+      makeTestCase("test"),
+      makeTestResultWithEval(validEvalData),
+    );
     await reporter.end();
 
     console.error = origError;

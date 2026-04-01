@@ -45,7 +45,10 @@ export function makeTestResultWithEval(
   ]);
 }
 
-export function makeTestCase(title: string, file: string = "test.ts"): TestCase {
+export function makeTestCase(
+  title: string,
+  file: string = "test.ts",
+): TestCase {
   return {
     title,
     location: { file, line: 1, column: 1 },
@@ -67,7 +70,11 @@ export function makeTestCase(title: string, file: string = "test.ts"): TestCase 
 
 const EMPTY_CONFIG = { workers: 1 } as FullConfig;
 const EMPTY_SUITE = { allTests: () => [] } as unknown as Suite;
-const PASSED_RESULT: FullResult = { status: "passed", startTime: new Date(), duration: 0 };
+const PASSED_RESULT: FullResult = {
+  status: "passed",
+  startTime: new Date(),
+  duration: 0,
+};
 
 export const validEvalData = {
   assertionType: "groundedness",

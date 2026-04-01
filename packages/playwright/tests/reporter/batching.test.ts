@@ -5,7 +5,11 @@ import {
   makeTestResultWithEval,
   validEvalData,
 } from "../helpers/mock-reporter.js";
-import { mockFetch, getFetchCalls, restoreFetch } from "../helpers/mock-fetch.js";
+import {
+  mockFetch,
+  getFetchCalls,
+  restoreFetch,
+} from "../helpers/mock-fetch.js";
 
 test.afterEach(() => {
   restoreFetch();
@@ -18,7 +22,10 @@ test.describe("Reporter batching", () => {
     const reporter = createReporter({ apiKey: "sk-test-mock", batchSize: 2 });
     reporter.begin();
     for (let i = 0; i < 5; i++) {
-      reporter.onTestEnd(makeTestCase(`test-${i}`), makeTestResultWithEval(validEvalData));
+      reporter.onTestEnd(
+        makeTestCase(`test-${i}`),
+        makeTestResultWithEval(validEvalData),
+      );
     }
     await reporter.end();
 
@@ -31,8 +38,14 @@ test.describe("Reporter batching", () => {
 
     const reporter = createReporter({ apiKey: "sk-test-mock", batchSize: 50 });
     reporter.begin();
-    reporter.onTestEnd(makeTestCase("test-1"), makeTestResultWithEval(validEvalData));
-    reporter.onTestEnd(makeTestCase("test-2"), makeTestResultWithEval(validEvalData));
+    reporter.onTestEnd(
+      makeTestCase("test-1"),
+      makeTestResultWithEval(validEvalData),
+    );
+    reporter.onTestEnd(
+      makeTestCase("test-2"),
+      makeTestResultWithEval(validEvalData),
+    );
     await reporter.end();
 
     expect(getFetchCalls()).toHaveLength(1);
@@ -51,9 +64,15 @@ test.describe("Reporter batching", () => {
   test("includes correct payload structure", async () => {
     mockFetch([{ status: 200 }]);
 
-    const reporter = createReporter({ apiKey: "sk-test-mock", projectSlug: "my-project" });
+    const reporter = createReporter({
+      apiKey: "sk-test-mock",
+      projectSlug: "my-project",
+    });
     reporter.begin();
-    reporter.onTestEnd(makeTestCase("sample test"), makeTestResultWithEval(validEvalData));
+    reporter.onTestEnd(
+      makeTestCase("sample test"),
+      makeTestResultWithEval(validEvalData),
+    );
     await reporter.end();
 
     const calls = getFetchCalls();

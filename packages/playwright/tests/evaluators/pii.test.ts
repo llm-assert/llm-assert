@@ -36,7 +36,11 @@ test.describe("evaluatePII", () => {
   });
 
   test("returns fail for inconclusive (score -1)", async () => {
-    const result = await evaluatePII("text", undefined, mockInconclusiveJudge());
+    const result = await evaluatePII(
+      "text",
+      undefined,
+      mockInconclusiveJudge(),
+    );
     expect(result.pass).toBe(false);
     expect(result.score).toBe(-1);
   });
