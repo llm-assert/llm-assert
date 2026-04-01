@@ -12,15 +12,15 @@ import Stripe from "stripe";
 
 const EXPECTED_PLANS = {
   starter: {
-    priceEnvVar: "STRIPE_STARTER_PRICE_ID",
+    priceEnvKey: "STRIPE_STARTER_PRICE_ID",
     metadata: { plan: "starter", evaluation_limit: "5000" },
   },
   pro: {
-    priceEnvVar: "STRIPE_PRO_PRICE_ID",
+    priceEnvKey: "STRIPE_PRO_PRICE_ID",
     metadata: { plan: "pro", evaluation_limit: "25000" },
   },
   team: {
-    priceEnvVar: "STRIPE_TEAM_PRICE_ID",
+    priceEnvKey: "STRIPE_TEAM_PRICE_ID",
     metadata: { plan: "team", evaluation_limit: "100000" },
   },
 } as const;
@@ -43,11 +43,11 @@ async function main() {
   let total = 0;
 
   for (const [planName, expected] of Object.entries(EXPECTED_PLANS)) {
-    const priceId = process.env[expected.priceEnvVar];
+    const priceId = process.env[expected.priceEnvKey];
     if (!priceId) {
       issues.push({
         level: "ERROR",
-        message: `${expected.priceEnvVar} is not set`,
+        message: `${expected.priceEnvKey} is not set`,
       });
       continue;
     }

@@ -8,8 +8,21 @@ function required(name: string, value: string | undefined): string {
   return value;
 }
 
+function requiredUrl(name: string, value: string | undefined): string {
+  const v = required(name, value);
+  try {
+    new URL(v);
+  } catch {
+    throw new Error(
+      `Environment variable ${name} is not a valid URL: "${v}". ` +
+        `Expected a full URL like "https://example.supabase.co".`,
+    );
+  }
+  return v;
+}
+
 export const publicEnv = {
-  NEXT_PUBLIC_SUPABASE_URL: required(
+  NEXT_PUBLIC_SUPABASE_URL: requiredUrl(
     "NEXT_PUBLIC_SUPABASE_URL",
     process.env.NEXT_PUBLIC_SUPABASE_URL,
   ),
