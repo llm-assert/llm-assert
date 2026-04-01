@@ -48,7 +48,11 @@ test.describe("Reporter attachment parsing", () => {
     reporter.onTestEnd(
       makeTestCase("test"),
       makeTestResult([
-        { name: "screenshot", contentType: "image/png", body: Buffer.from("fake") },
+        {
+          name: "screenshot",
+          contentType: "image/png",
+          body: Buffer.from("fake"),
+        },
       ]),
     );
     expect(reporter.getEvaluations()).toHaveLength(0);
@@ -86,7 +90,11 @@ test.describe("Reporter attachment parsing", () => {
     reporter.begin();
     reporter.onTestEnd(
       makeTestCase("test"),
-      makeTestResultWithEval({ ...validEvalData, score: -1, result: "inconclusive" }),
+      makeTestResultWithEval({
+        ...validEvalData,
+        score: -1,
+        result: "inconclusive",
+      }),
     );
     const evals = reporter.getEvaluations();
     expect(evals).toHaveLength(1);

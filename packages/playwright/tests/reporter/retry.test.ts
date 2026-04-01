@@ -5,7 +5,11 @@ import {
   makeTestResultWithEval,
   validEvalData,
 } from "../helpers/mock-reporter.js";
-import { mockFetch, getFetchCalls, restoreFetch } from "../helpers/mock-fetch.js";
+import {
+  mockFetch,
+  getFetchCalls,
+  restoreFetch,
+} from "../helpers/mock-fetch.js";
 
 test.afterEach(() => {
   restoreFetch();
@@ -21,7 +25,10 @@ test.describe("Reporter retry", () => {
       onError: "silent",
     });
     reporter.begin();
-    reporter.onTestEnd(makeTestCase("test"), makeTestResultWithEval(validEvalData));
+    reporter.onTestEnd(
+      makeTestCase("test"),
+      makeTestResultWithEval(validEvalData),
+    );
     await reporter.end();
 
     expect(getFetchCalls()).toHaveLength(2);
@@ -39,7 +46,10 @@ test.describe("Reporter retry", () => {
       onError: "silent",
     });
     reporter.begin();
-    reporter.onTestEnd(makeTestCase("test"), makeTestResultWithEval(validEvalData));
+    reporter.onTestEnd(
+      makeTestCase("test"),
+      makeTestResultWithEval(validEvalData),
+    );
     await reporter.end();
 
     expect(getFetchCalls()).toHaveLength(2);

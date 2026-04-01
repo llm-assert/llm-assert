@@ -2,10 +2,7 @@ import { test, expect } from "@playwright/test";
 import { JudgeClient } from "../../src/judge/client.js";
 import type { JudgeProvider } from "../../src/judge/providers.js";
 
-function mockProvider(
-  name: string,
-  response: string | Error,
-): JudgeProvider {
+function mockProvider(name: string, response: string | Error): JudgeProvider {
   return {
     name,
     async call(): Promise<string> {

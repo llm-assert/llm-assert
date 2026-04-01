@@ -39,11 +39,21 @@ if (supabasePublishableKey.includes("service_role")) {
   );
 }
 
+const serviceRoleKey = required(
+  "SUPABASE_SERVICE_ROLE_KEY",
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+);
+
+if (serviceRoleKey === supabasePublishableKey) {
+  throw new Error(
+    "SUPABASE_SERVICE_ROLE_KEY is identical to NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY. " +
+      "The service role key must be a different key that bypasses RLS. " +
+      "Using the anon key as service_role causes silent write failures in ingest and webhook routes.",
+  );
+}
+
 export const serverEnv = {
-  SUPABASE_SERVICE_ROLE_KEY: required(
-    "SUPABASE_SERVICE_ROLE_KEY",
-    process.env.SUPABASE_SERVICE_ROLE_KEY,
-  ),
+  SUPABASE_SERVICE_ROLE_KEY: serviceRoleKey,
   STRIPE_SECRET_KEY: requiredInProduction(
     "STRIPE_SECRET_KEY",
     process.env.STRIPE_SECRET_KEY,
