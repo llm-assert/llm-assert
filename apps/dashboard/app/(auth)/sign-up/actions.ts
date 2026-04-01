@@ -30,7 +30,10 @@ export async function signUp(
   if (error) {
     // Use generic message to prevent account enumeration —
     // Supabase errors can reveal whether an email is already registered.
-    return { error: "Could not create account. Please try again.", success: false };
+    return {
+      error: "Could not create account. Please try again.",
+      success: false,
+    };
   }
 
   return {

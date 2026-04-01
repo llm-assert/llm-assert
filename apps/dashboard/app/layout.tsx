@@ -14,8 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "LLMAssert",
-  description:
-    "Analytics dashboard for LLM assertion testing with Playwright",
+  description: "Analytics dashboard for LLM assertion testing with Playwright",
 };
 
 export default function RootLayout({
