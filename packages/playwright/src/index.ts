@@ -19,7 +19,7 @@ export type {
   LLMAssertFixture,
   LLMAssertOptions,
 } from "./types.js";
-export { JudgeClient } from "./judge/client.js";
+export { JudgeClient, type JudgeEvaluator } from "./judge/client.js";
 
 /** Attach evaluation data for the reporter to collect via result.attachments */
 async function attachEvaluation(

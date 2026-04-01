@@ -1,4 +1,4 @@
-import { JudgeClient } from "../judge/client.js";
+import { JudgeClient, type JudgeEvaluator } from "../judge/client.js";
 import { FUZZY_SYSTEM, FUZZY_USER } from "../judge/prompts.js";
 import type { AssertionResult, JudgeConfig } from "../types.js";
 
@@ -11,7 +11,7 @@ export async function evaluateFuzzy(
   expected: string,
   threshold: number = 0.7,
   config?: JudgeConfig,
-  client?: JudgeClient,
+  client?: JudgeEvaluator,
 ): Promise<
   AssertionResult & { model: string; latencyMs: number; fallbackUsed: boolean }
 > {
