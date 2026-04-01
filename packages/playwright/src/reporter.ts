@@ -64,6 +64,7 @@ function parseEvaluationAttachment(
     judgeLatencyMs: d.judgeLatencyMs as number,
     judgeCostUsd:
       typeof d.judgeCostUsd === "number" ? d.judgeCostUsd : undefined,
+    fallbackUsed: typeof d.fallbackUsed === "boolean" ? d.fallbackUsed : false,
   };
 }
 
@@ -166,6 +167,7 @@ class LLMAssertReporter implements Reporter {
         judge_model: e.judgeModel,
         judge_latency_ms: e.judgeLatencyMs,
         judge_cost_usd: e.judgeCostUsd,
+        fallback_used: e.fallbackUsed,
         threshold: e.threshold,
       })),
     };

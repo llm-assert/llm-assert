@@ -64,8 +64,5 @@ export const serverEnv = {
     "STRIPE_TEAM_PRICE_ID",
     process.env.STRIPE_TEAM_PRICE_ID,
   ),
-  CRON_SECRET: requiredInProduction(
-    "CRON_SECRET",
-    process.env.CRON_SECRET,
-  ),
+  CRON_SECRET: requiredInProduction("CRON_SECRET", process.env.CRON_SECRET),
 } as const;

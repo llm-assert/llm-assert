@@ -1,11 +1,15 @@
-import OpenAI from "openai";
 import type { JudgeConfig, JudgeResponse } from "../types.js";
+import {
+  type JudgeProvider,
+  OpenAIProvider,
+  createAnthropicProvider,
+} from "./providers.js";
 
-const DEFAULT_CONFIG: Required<
+export const DEFAULT_CONFIG: Required<
   Omit<JudgeConfig, "openaiApiKey" | "anthropicApiKey">
 > = {
   primaryModel: "gpt-5.4-mini",
-  fallbackModel: "claude-haiku",
+  fallbackModel: "claude-3-5-haiku-20241022",
   timeout: 10_000,
 };
 
@@ -17,20 +21,35 @@ export class JudgeClient {
   private config: Required<
     Omit<JudgeConfig, "openaiApiKey" | "anthropicApiKey">
   >;
-  private openai: OpenAI | null;
-  // TODO(FEAT-11): Add Anthropic client when implementing fallback
+  private providers: JudgeProvider[] = [];
+  private anthropicInitPromise: Promise<void> | null = null;
 
   constructor(config: JudgeConfig = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
 
+    // Primary: OpenAI (sync init)
     const openaiKey = config.openaiApiKey ?? process.env.OPENAI_API_KEY;
-    this.openai = openaiKey
-      ? new OpenAI({
-          apiKey: openaiKey,
-          timeout: this.config.timeout,
-          maxRetries: 0,
-        })
-      : null;
+    if (openaiKey) {
+      this.providers.push(
+        new OpenAIProvider(
+          openaiKey,
+          this.config.primaryModel,
+          this.config.timeout,
+        ),
+      );
+    }
+
+    // Fallback: Anthropic (async lazy init)
+    const anthropicKey =
+      config.anthropicApiKey ?? process.env.ANTHROPIC_API_KEY;
+    this.anthropicInitPromise = createAnthropicProvider(
+      anthropicKey,
+      this.config.fallbackModel,
+      this.config.timeout,
+    ).then((provider) => {
+      if (provider) this.providers.push(provider);
+      this.anthropicInitPromise = null;
+    });
   }
 
   /** Evaluate with the judge model, returning score + reasoning */
@@ -41,26 +60,38 @@ export class JudgeClient {
     response: JudgeResponse;
     model: string;
     latencyMs: number;
+    fallbackUsed: boolean;
   }> {
+    // Ensure Anthropic provider is initialized before evaluating
+    if (this.anthropicInitPromise) {
+      await this.anthropicInitPromise;
+    }
+
     const start = Date.now();
 
-    // Try primary model (OpenAI)
-    if (this.openai) {
+    for (let i = 0; i < this.providers.length; i++) {
+      const provider = this.providers[i];
       try {
-        const response = await this.callOpenAI(systemPrompt, userPrompt);
+        const raw = await provider.call(systemPrompt, userPrompt);
+        const response = this.parseResponse(raw);
         return {
           response,
-          model: this.config.primaryModel,
+          model: i === 0 ? this.config.primaryModel : this.config.fallbackModel,
           latencyMs: Date.now() - start,
+          fallbackUsed: i > 0,
         };
-      } catch (_error) {
-        // Primary failed — fall through to fallback
+      } catch (error) {
+        const errorHint = error instanceof Error ? error.name : "Unknown error";
+        if (i < this.providers.length - 1) {
+          console.warn(
+            `[LLMAssert] Primary judge (${provider.name}) failed (${errorHint}), trying fallback`,
+          );
+        }
       }
     }
 
-    // TODO(FEAT-11): Try fallback model (Anthropic Claude Haiku)
-
-    // Both providers failed — return inconclusive
+    // All providers failed — return inconclusive
+    // fallbackUsed is false: no provider produced a result
     return {
       response: {
         score: -1,
@@ -68,28 +99,8 @@ export class JudgeClient {
       },
       model: "none",
       latencyMs: Date.now() - start,
+      fallbackUsed: false,
     };
-  }
-
-  private async callOpenAI(
-    systemPrompt: string,
-    userPrompt: string,
-  ): Promise<JudgeResponse> {
-    if (!this.openai) throw new Error("OpenAI client not initialized");
-
-    const completion = await this.openai.chat.completions.create({
-      model: this.config.primaryModel,
-      messages: [
-        { role: "developer", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      response_format: { type: "json_object" },
-    });
-
-    const content = completion.choices[0]?.message?.content;
-    if (!content) throw new Error("Empty response from judge model");
-
-    return this.parseResponse(content);
   }
 
   private parseResponse(raw: string): JudgeResponse {
@@ -98,6 +109,8 @@ export class JudgeClient {
       const score = Number(parsed.score);
       const reasoning = String(parsed.reasoning ?? "");
 
+      // Only accept scores in [0, 1]. A model returning -1 is treated as a
+      // parse failure (triggers fallback), not as the inconclusive sentinel.
       if (isNaN(score) || score < 0 || score > 1) {
         throw new Error(`Invalid score: ${parsed.score}`);
       }

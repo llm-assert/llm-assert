@@ -49,12 +49,19 @@
     "lint": "eslint src/"
   },
   "peerDependencies": {
-    "@playwright/test": ">=1.40.0"
+    "@playwright/test": ">=1.40.0",
+    "@anthropic-ai/sdk": ">=0.50.0"
+  },
+  "peerDependenciesMeta": {
+    "@anthropic-ai/sdk": {
+      "optional": true
+    }
   },
   "dependencies": {
     "openai": "^6.33.0"
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "^0.50.0",
     "@playwright/test": "^1.58.2",
     "@types/node": "^22",
     "eslint": "^10.1.0",

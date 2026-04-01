@@ -71,6 +71,7 @@ export const expect = baseExpect.extend({
       reasoning: result.reasoning,
       judgeModel: result.model,
       judgeLatencyMs: result.latencyMs,
+      fallbackUsed: result.fallbackUsed,
     });
 
     return {
@@ -107,6 +108,7 @@ export const expect = baseExpect.extend({
       reasoning: result.reasoning,
       judgeModel: result.model,
       judgeLatencyMs: result.latencyMs,
+      fallbackUsed: result.fallbackUsed,
     });
 
     return {
@@ -149,6 +151,7 @@ export const expect = baseExpect.extend({
       reasoning: result.reasoning,
       judgeModel: result.model,
       judgeLatencyMs: result.latencyMs,
+      fallbackUsed: result.fallbackUsed,
     });
 
     return {
@@ -186,6 +189,7 @@ export const expect = baseExpect.extend({
       reasoning: result.reasoning,
       judgeModel: result.model,
       judgeLatencyMs: result.latencyMs,
+      fallbackUsed: result.fallbackUsed,
     });
 
     return {
@@ -229,6 +233,7 @@ export const expect = baseExpect.extend({
       reasoning: result.reasoning,
       judgeModel: result.model,
       judgeLatencyMs: result.latencyMs,
+      fallbackUsed: result.fallbackUsed,
     });
 
     return {

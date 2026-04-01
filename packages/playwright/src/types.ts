@@ -29,7 +29,7 @@ export type EvaluationResult = "pass" | "fail" | "inconclusive";
 export interface JudgeConfig {
   /** Primary model to use (default: 'gpt-5.4-mini') */
   primaryModel?: string;
-  /** Fallback model (default: 'claude-haiku') */
+  /** Fallback model (default: 'claude-3-5-haiku-20241022') */
   fallbackModel?: string;
   /** Timeout in milliseconds before marking inconclusive (default: 10000) */
   timeout?: number;
@@ -73,6 +73,8 @@ export interface EvaluationRecord {
   judgeModel: string;
   judgeLatencyMs: number;
   judgeCostUsd?: number;
+  /** Whether a fallback provider was used instead of the primary */
+  fallbackUsed: boolean;
   /** Effective pass/fail threshold used by the matcher */
   threshold: number;
 }
@@ -111,6 +113,7 @@ export interface IngestPayload {
     judge_model: string;
     judge_latency_ms: number;
     judge_cost_usd?: number;
+    fallback_used: boolean;
     threshold: number;
   }>;
 }
