@@ -43,8 +43,6 @@ supabase/.temp/
 # Internal docs and workflow (not for public repo)
 docs/
 openspec/
-.vercel
-.env*.local
 
-# Turborepo
-.turbo
+# Vercel
+.vercel
