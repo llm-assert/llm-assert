@@ -10,7 +10,9 @@ export async function evaluatePII(
   input: string,
   config?: JudgeConfig,
   client?: JudgeClient,
-): Promise<AssertionResult & { model: string; latencyMs: number }> {
+): Promise<
+  AssertionResult & { model: string; latencyMs: number; fallbackUsed: boolean }
+> {
   if (!input || input.trim().length === 0) {
     return {
       pass: true,
@@ -18,11 +20,12 @@ export async function evaluatePII(
       reasoning: "Empty input — no PII possible.",
       model: "none",
       latencyMs: 0,
+      fallbackUsed: false,
     };
   }
 
   const judge = client ?? new JudgeClient(config);
-  const { response, model, latencyMs } = await judge.evaluate(
+  const { response, model, latencyMs, fallbackUsed } = await judge.evaluate(
     PII_SYSTEM,
     PII_USER(input),
   );
@@ -34,6 +37,7 @@ export async function evaluatePII(
       reasoning: response.reasoning,
       model,
       latencyMs,
+      fallbackUsed,
     };
   }
 
@@ -43,5 +47,6 @@ export async function evaluatePII(
     reasoning: response.reasoning,
     model,
     latencyMs,
+    fallbackUsed,
   };
 }

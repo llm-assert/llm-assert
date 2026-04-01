@@ -4,7 +4,7 @@ import type {
   LLMAssertFixture,
   LLMAssertOptions,
 } from "./types.js";
-import { JudgeClient } from "./judge/client.js";
+import { DEFAULT_CONFIG, JudgeClient } from "./judge/client.js";
 import { setWorkerJudgeClient } from "./singleton.js";
 
 export type { LLMAssertFixture, LLMAssertOptions };
@@ -51,9 +51,13 @@ export const test = base.extend<
           judgeConfig.anthropicApiKey ?? process.env.ANTHROPIC_API_KEY,
       };
 
-      if (!config.openaiApiKey) {
+      if (!config.openaiApiKey && !config.anthropicApiKey) {
         console.warn(
-          "llmAssert: OPENAI_API_KEY is not set. All assertions will return inconclusive.",
+          "llmAssert: No LLM API keys configured (OPENAI_API_KEY, ANTHROPIC_API_KEY). All assertions will return inconclusive.",
+        );
+      } else if (!config.openaiApiKey) {
+        console.warn(
+          "llmAssert: OPENAI_API_KEY is not set. Assertions will use Anthropic fallback.",
         );
       }
 
@@ -68,9 +72,9 @@ export const test = base.extend<
   // Test-scoped fixture for direct access to resolved config
   llmAssert: async ({ judgeConfig }, use) => {
     const resolved: JudgeConfig = {
-      primaryModel: judgeConfig.primaryModel ?? "gpt-5.4-mini",
-      fallbackModel: judgeConfig.fallbackModel ?? "claude-haiku",
-      timeout: judgeConfig.timeout ?? 10_000,
+      primaryModel: judgeConfig.primaryModel ?? DEFAULT_CONFIG.primaryModel,
+      fallbackModel: judgeConfig.fallbackModel ?? DEFAULT_CONFIG.fallbackModel,
+      timeout: judgeConfig.timeout ?? DEFAULT_CONFIG.timeout,
       openaiApiKey: judgeConfig.openaiApiKey ?? process.env.OPENAI_API_KEY,
       anthropicApiKey:
         judgeConfig.anthropicApiKey ?? process.env.ANTHROPIC_API_KEY,

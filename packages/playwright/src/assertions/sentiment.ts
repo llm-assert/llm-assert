@@ -11,7 +11,9 @@ export async function evaluateSentiment(
   descriptor: string,
   config?: JudgeConfig,
   client?: JudgeClient,
-): Promise<AssertionResult & { model: string; latencyMs: number }> {
+): Promise<
+  AssertionResult & { model: string; latencyMs: number; fallbackUsed: boolean }
+> {
   if (!input || input.trim().length === 0) {
     return {
       pass: false,
@@ -19,11 +21,12 @@ export async function evaluateSentiment(
       reasoning: "Empty input — cannot evaluate tone.",
       model: "none",
       latencyMs: 0,
+      fallbackUsed: false,
     };
   }
 
   const judge = client ?? new JudgeClient(config);
-  const { response, model, latencyMs } = await judge.evaluate(
+  const { response, model, latencyMs, fallbackUsed } = await judge.evaluate(
     SENTIMENT_SYSTEM,
     SENTIMENT_USER(descriptor, input),
   );
@@ -35,6 +38,7 @@ export async function evaluateSentiment(
       reasoning: response.reasoning,
       model,
       latencyMs,
+      fallbackUsed,
     };
   }
 
@@ -44,5 +48,6 @@ export async function evaluateSentiment(
     reasoning: response.reasoning,
     model,
     latencyMs,
+    fallbackUsed,
   };
 }

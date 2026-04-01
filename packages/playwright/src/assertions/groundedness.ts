@@ -11,7 +11,9 @@ export async function evaluateGroundedness(
   context: string,
   config?: JudgeConfig,
   client?: JudgeClient,
-): Promise<AssertionResult & { model: string; latencyMs: number }> {
+): Promise<
+  AssertionResult & { model: string; latencyMs: number; fallbackUsed: boolean }
+> {
   if (!input || input.trim().length === 0) {
     return {
       pass: false,
@@ -19,11 +21,12 @@ export async function evaluateGroundedness(
       reasoning: "Empty input — nothing to evaluate.",
       model: "none",
       latencyMs: 0,
+      fallbackUsed: false,
     };
   }
 
   const judge = client ?? new JudgeClient(config);
-  const { response, model, latencyMs } = await judge.evaluate(
+  const { response, model, latencyMs, fallbackUsed } = await judge.evaluate(
     GROUNDEDNESS_SYSTEM,
     GROUNDEDNESS_USER(context, input),
   );
@@ -36,6 +39,7 @@ export async function evaluateGroundedness(
       reasoning: response.reasoning,
       model,
       latencyMs,
+      fallbackUsed,
     };
   }
 
@@ -45,5 +49,6 @@ export async function evaluateGroundedness(
     reasoning: response.reasoning,
     model,
     latencyMs,
+    fallbackUsed,
   };
 }

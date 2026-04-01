@@ -12,7 +12,9 @@ export async function evaluateFuzzy(
   threshold: number = 0.7,
   config?: JudgeConfig,
   client?: JudgeClient,
-): Promise<AssertionResult & { model: string; latencyMs: number }> {
+): Promise<
+  AssertionResult & { model: string; latencyMs: number; fallbackUsed: boolean }
+> {
   if (!input || input.trim().length === 0) {
     return {
       pass: false,
@@ -20,11 +22,12 @@ export async function evaluateFuzzy(
       reasoning: "Empty input — cannot evaluate similarity.",
       model: "none",
       latencyMs: 0,
+      fallbackUsed: false,
     };
   }
 
   const judge = client ?? new JudgeClient(config);
-  const { response, model, latencyMs } = await judge.evaluate(
+  const { response, model, latencyMs, fallbackUsed } = await judge.evaluate(
     FUZZY_SYSTEM,
     FUZZY_USER(expected, input),
   );
@@ -36,6 +39,7 @@ export async function evaluateFuzzy(
       reasoning: response.reasoning,
       model,
       latencyMs,
+      fallbackUsed,
     };
   }
 
@@ -45,5 +49,6 @@ export async function evaluateFuzzy(
     reasoning: response.reasoning,
     model,
     latencyMs,
+    fallbackUsed,
   };
 }
