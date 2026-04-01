@@ -1,5 +1,15 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { publicEnv } from "@/lib/env";
+
+/**
+ * Derive the allowed host for redirect validation.
+ * Fallback chain: NEXT_PUBLIC_APP_URL → VERCEL_URL → localhost.
+ * VERCEL_URL does NOT include the protocol — we prepend https://.
+ */
+function getAllowedHost(): string {
+  return new URL(publicEnv.NEXT_PUBLIC_APP_URL).host;
+}
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -23,13 +33,11 @@ export async function GET(request: Request) {
       if (isLocalEnv) {
         return NextResponse.redirect(`${origin}${next}`);
       } else if (forwardedHost) {
-        // Validate forwarded host against the configured app URL to
+        // Validate forwarded host against the derived app URL to
         // prevent host header injection redirecting to attacker domains.
-        const allowedHost = process.env.NEXT_PUBLIC_APP_URL
-          ? new URL(process.env.NEXT_PUBLIC_APP_URL).host
-          : null;
+        const allowedHost = getAllowedHost();
 
-        if (allowedHost && forwardedHost === allowedHost) {
+        if (forwardedHost === allowedHost) {
           return NextResponse.redirect(`https://${forwardedHost}${next}`);
         }
         return NextResponse.redirect(`${origin}${next}`);

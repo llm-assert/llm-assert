@@ -45,7 +45,13 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm run build
+      - name: Build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: "https://placeholder.supabase.co"
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "placeholder"
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: "pk_test_placeholder"
+          NEXT_PUBLIC_APP_URL: "http://localhost:3000"
+        run: pnpm run build
 
   commitlint:
     if: github.event_name == 'pull_request'
