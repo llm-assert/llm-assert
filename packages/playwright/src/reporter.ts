@@ -7,10 +7,65 @@ import type {
   TestResult,
 } from "@playwright/test/reporter";
 import type {
+  AssertionType,
   EvaluationRecord,
+  EvaluationResult,
   IngestPayload,
   ReporterConfig,
 } from "./types.js";
+
+const ATTACHMENT_NAME = "llmassert-eval";
+const VALID_ASSERTION_TYPES: AssertionType[] = [
+  "groundedness",
+  "pii",
+  "sentiment",
+  "schema",
+  "fuzzy",
+];
+const VALID_RESULTS: EvaluationResult[] = ["pass", "fail", "inconclusive"];
+
+/** Parse and validate a JSON attachment body as a partial EvaluationRecord */
+function parseEvaluationAttachment(
+  body: Buffer,
+): Omit<EvaluationRecord, "testName" | "testFile"> | null {
+  let data: unknown;
+  try {
+    data = JSON.parse(body.toString());
+  } catch {
+    return null;
+  }
+
+  if (typeof data !== "object" || data === null) return null;
+
+  const d = data as Record<string, unknown>;
+
+  // Validate required fields and types
+  if (typeof d.score !== "number") return null;
+  if (!((d.score >= 0 && d.score <= 1) || d.score === -1)) return null;
+  if (typeof d.reasoning !== "string" || d.reasoning.length === 0) return null;
+  if (!VALID_ASSERTION_TYPES.includes(d.assertionType as AssertionType))
+    return null;
+  if (!VALID_RESULTS.includes(d.result as EvaluationResult)) return null;
+  if (typeof d.judgeModel !== "string") return null;
+  if (typeof d.judgeLatencyMs !== "number") return null;
+  if (typeof d.threshold !== "number") return null;
+
+  return {
+    assertionType: d.assertionType as AssertionType,
+    inputText: typeof d.inputText === "string" ? d.inputText : "",
+    contextText: typeof d.contextText === "string" ? d.contextText : undefined,
+    expectedValue:
+      typeof d.expectedValue === "string" ? d.expectedValue : undefined,
+    threshold: d.threshold as number,
+    result: d.result as EvaluationResult,
+    score: d.score as number,
+    reasoning: d.reasoning as string,
+    judgeModel: d.judgeModel as string,
+    judgeLatencyMs: d.judgeLatencyMs as number,
+    judgeCostUsd:
+      typeof d.judgeCostUsd === "number" ? d.judgeCostUsd : undefined,
+  };
+}
 
 /**
  * Custom Playwright reporter that sends evaluation results to the LLMAssert dashboard.
@@ -47,9 +102,30 @@ class LLMAssertReporter implements Reporter {
     this.evaluations = [];
   }
 
-  onTestEnd(_test: TestCase, _result: TestResult) {
-    // Evaluation results are attached via step metadata
-    // during assertion execution — collected here for batching
+  onTestEnd(test: TestCase, result: TestResult) {
+    for (const attachment of result.attachments) {
+      if (
+        attachment.name !== ATTACHMENT_NAME ||
+        attachment.contentType !== "application/json" ||
+        !attachment.body
+      ) {
+        continue;
+      }
+
+      const evalData = parseEvaluationAttachment(attachment.body);
+      if (!evalData) {
+        this.handleError(
+          `Invalid evaluation attachment in test "${test.title}" — skipping`,
+        );
+        continue;
+      }
+
+      this.evaluations.push({
+        ...evalData,
+        testName: test.title,
+        testFile: test.location.file,
+      });
+    }
   }
 
   async onEnd(_result: FullResult) {
@@ -90,6 +166,7 @@ class LLMAssertReporter implements Reporter {
         judge_model: e.judgeModel,
         judge_latency_ms: e.judgeLatencyMs,
         judge_cost_usd: e.judgeCostUsd,
+        threshold: e.threshold,
       })),
     };
 
