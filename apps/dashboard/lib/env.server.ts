@@ -62,15 +62,15 @@ export const serverEnv = {
     "STRIPE_WEBHOOK_SECRET",
     process.env.STRIPE_WEBHOOK_SECRET,
   ),
-  STRIPE_STARTER_PRICE_ID: required(
+  STRIPE_STARTER_PRICE_ID: requiredInProduction(
     "STRIPE_STARTER_PRICE_ID",
     process.env.STRIPE_STARTER_PRICE_ID,
   ),
-  STRIPE_PRO_PRICE_ID: required(
+  STRIPE_PRO_PRICE_ID: requiredInProduction(
     "STRIPE_PRO_PRICE_ID",
     process.env.STRIPE_PRO_PRICE_ID,
   ),
-  STRIPE_TEAM_PRICE_ID: required(
+  STRIPE_TEAM_PRICE_ID: requiredInProduction(
     "STRIPE_TEAM_PRICE_ID",
     process.env.STRIPE_TEAM_PRICE_ID,
   ),

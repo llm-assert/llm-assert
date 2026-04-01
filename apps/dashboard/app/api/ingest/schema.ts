@@ -1,0 +1,56 @@
+import { z } from "zod";
+
+const ASSERTION_TYPES = [
+  "groundedness",
+  "pii",
+  "sentiment",
+  "schema",
+  "fuzzy",
+] as const;
+
+const EVALUATION_RESULTS = ["pass", "fail", "inconclusive"] as const;
+
+const EvaluationSchema = z
+  .object({
+    assertion_type: z.enum(ASSERTION_TYPES),
+    test_name: z.string().min(1).max(500),
+    test_file: z.string().max(1000).optional(),
+    input_text: z.string().min(1),
+    context_text: z.string().optional(),
+    expected_value: z.string().optional(),
+    result: z.enum(EVALUATION_RESULTS),
+    score: z.number().min(0).max(1).nullable(),
+    reasoning: z.string().min(1).max(5000),
+    judge_model: z.string().min(1).max(100),
+    judge_latency_ms: z.number().int().nonnegative(),
+    judge_cost_usd: z.number().nonnegative().optional(),
+    fallback_used: z.boolean(),
+    threshold: z.number().min(0).max(1),
+  })
+  .refine((e) => e.result === "inconclusive" || e.score !== null, {
+    message: "score must not be null unless result is inconclusive",
+  });
+
+export const IngestPayloadSchema = z.object({
+  project_slug: z
+    .string()
+    .min(1)
+    .max(100)
+    .regex(
+      /^[a-z0-9-]+$/,
+      "project_slug must be lowercase alphanumeric with hyphens",
+    ),
+  run_id: z.string().uuid(),
+  run: z.object({
+    started_at: z.string().datetime(),
+    finished_at: z.string().datetime().optional(),
+    ci_provider: z.string().max(50).optional(),
+    ci_run_url: z.string().url().max(2000).optional(),
+    branch: z.string().max(500).optional(),
+    commit_sha: z.string().max(100).optional(),
+    metadata: z.record(z.string(), z.unknown()).optional(),
+  }),
+  evaluations: z.array(EvaluationSchema).min(1).max(500),
+});
+
+export type IngestPayload = z.infer<typeof IngestPayloadSchema>;
