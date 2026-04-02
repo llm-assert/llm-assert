@@ -32,6 +32,11 @@ export function formatPassRate(passed: number, failed: number): string {
   return `${((passed / total) * 100).toFixed(1)}%`;
 }
 
+export function formatScore(score: number | null): string {
+  if (score === null || score === undefined) return "—";
+  return score.toFixed(2);
+}
+
 export function getPassRateColor(passed: number, failed: number): string {
   const total = passed + failed;
   if (total === 0) return "";

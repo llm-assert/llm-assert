@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ExternalLink } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -102,9 +103,14 @@ export async function RunsTable({
           </TableHeader>
           <TableBody>
             {runs.map((run) => (
-              <TableRow key={run.id}>
+              <TableRow key={run.id} className="group relative cursor-pointer">
                 <TableCell className="whitespace-nowrap text-sm">
-                  {formatRelativeTime(run.started_at)}
+                  <Link
+                    href={`/projects/${projectSlug}/runs/${run.id}`}
+                    className="after:absolute after:inset-0"
+                  >
+                    {formatRelativeTime(run.started_at)}
+                  </Link>
                 </TableCell>
                 <TableCell className="max-w-[150px] truncate font-mono text-sm">
                   {run.branch ?? "—"}
@@ -116,7 +122,7 @@ export async function RunsTable({
                         href={run.ci_run_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+                        className="relative z-10 inline-flex items-center gap-1 hover:text-foreground transition-colors"
                       >
                         {run.commit_sha.slice(0, 7)}
                         <ExternalLink className="size-3" />

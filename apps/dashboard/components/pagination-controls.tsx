@@ -45,19 +45,25 @@ export function PaginationControls({
   totalPages,
   totalCount,
   perPage,
+  noun = "runs",
+  buildHref,
 }: {
   currentPage: number;
   totalPages: number;
   totalCount: number;
   perPage: number;
+  noun?: string;
+  buildHref?: (page: number) => string;
 }) {
   const from = (currentPage - 1) * perPage + 1;
   const to = Math.min(currentPage * perPage, totalCount);
+  const singular = noun.endsWith("s") ? noun.slice(0, -1) : noun;
+  const href = (page: number) => buildHref ? buildHref(page) : `?page=${page}`;
 
   if (totalPages <= 1) {
     return (
       <p className="pt-4 text-sm text-muted-foreground">
-        {totalCount} {totalCount === 1 ? "run" : "runs"} total
+        {totalCount} {totalCount === 1 ? singular : noun} total
       </p>
     );
   }
@@ -67,16 +73,16 @@ export function PaginationControls({
   return (
     <div className="flex flex-col items-center gap-2 pt-4 sm:flex-row sm:justify-between">
       <p className="text-sm text-muted-foreground">
-        Showing {from}–{to} of {totalCount} runs
+        Showing {from}–{to} of {totalCount} {noun}
       </p>
       <Pagination>
         <PaginationContent>
           <PaginationItem>
             {currentPage > 1 ? (
-              <PaginationPrevious href={`?page=${currentPage - 1}`} />
+              <PaginationPrevious href={href(currentPage - 1)} />
             ) : (
               <PaginationPrevious
-                href="?page=1"
+                href={href(1)}
                 aria-disabled="true"
                 tabIndex={-1}
                 className="pointer-events-none opacity-50"
@@ -92,7 +98,7 @@ export function PaginationControls({
             ) : (
               <PaginationItem key={page}>
                 <PaginationLink
-                  href={`?page=${page}`}
+                  href={href(page)}
                   isActive={page === currentPage}
                   aria-current={page === currentPage ? "page" : undefined}
                 >
@@ -104,10 +110,10 @@ export function PaginationControls({
 
           <PaginationItem>
             {currentPage < totalPages ? (
-              <PaginationNext href={`?page=${currentPage + 1}`} />
+              <PaginationNext href={href(currentPage + 1)} />
             ) : (
               <PaginationNext
-                href={`?page=${totalPages}`}
+                href={href(totalPages)}
                 aria-disabled="true"
                 tabIndex={-1}
                 className="pointer-events-none opacity-50"

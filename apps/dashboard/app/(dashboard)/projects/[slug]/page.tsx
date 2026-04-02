@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getProject } from "@/lib/queries/get-project";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { StatsCards } from "@/components/stats-cards";
 import { RecentRunsTable } from "@/components/recent-runs-table";
@@ -14,21 +14,7 @@ export default async function ProjectOverviewPage({
 }) {
   const { slug } = await params;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    notFound();
-  }
-
-  const { data: project } = await supabase
-    .from("projects")
-    .select("id, name, slug, description")
-    .eq("slug", slug)
-    .eq("user_id", user.id)
-    .single();
+  const project = await getProject(slug);
 
   if (!project) {
     notFound();

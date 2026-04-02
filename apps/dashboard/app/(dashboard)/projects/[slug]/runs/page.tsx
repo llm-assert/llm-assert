@@ -1,29 +1,10 @@
-import { cache } from "react";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getProject } from "@/lib/queries/get-project";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { RunsTable } from "@/components/runs-table";
 import { RunsTableSkeleton } from "@/components/runs-table-skeleton";
-
-const getProject = cache(async (slug: string) => {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) return null;
-
-  const { data: project } = await supabase
-    .from("projects")
-    .select("id, name, slug")
-    .eq("slug", slug)
-    .eq("user_id", user.id)
-    .single();
-
-  return project;
-});
 
 export async function generateMetadata({
   params,
