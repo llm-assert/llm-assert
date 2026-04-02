@@ -25,21 +25,21 @@ export const PLANS: Record<PlanName, PlanConfig> = {
     label: "Starter",
     evaluationLimit: 5_000,
     projectsLimit: 3,
-    priceId: serverEnv.STRIPE_STARTER_PRICE_ID,
+    priceId: serverEnv.STRIPE_STARTER_PRICE_ID ?? null,
   },
   pro: {
     name: "pro",
     label: "Pro",
     evaluationLimit: 25_000,
     projectsLimit: 10,
-    priceId: serverEnv.STRIPE_PRO_PRICE_ID,
+    priceId: serverEnv.STRIPE_PRO_PRICE_ID ?? null,
   },
   team: {
     name: "team",
     label: "Team",
     evaluationLimit: 100_000,
     projectsLimit: Infinity,
-    priceId: serverEnv.STRIPE_TEAM_PRICE_ID,
+    priceId: serverEnv.STRIPE_TEAM_PRICE_ID ?? null,
   },
 };
 

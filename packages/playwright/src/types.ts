@@ -56,7 +56,7 @@ export interface ReporterConfig {
   /** Error handling mode (default: 'warn') */
   onError?: "warn" | "throw" | "silent";
   /** Arbitrary metadata attached to the run */
-  metadata?: Record<string, string>;
+  metadata?: Record<string, unknown>;
 }
 
 /** A single evaluation result collected by the reporter */
@@ -92,6 +92,7 @@ export interface LLMAssertFixture {
 /** Payload sent to POST /api/ingest */
 export interface IngestPayload {
   project_slug: string;
+  run_id: string;
   run: {
     started_at: string;
     finished_at?: string;
@@ -99,6 +100,7 @@ export interface IngestPayload {
     ci_run_url?: string;
     branch?: string;
     commit_sha?: string;
+    metadata?: Record<string, unknown>;
   };
   evaluations: Array<{
     assertion_type: string;

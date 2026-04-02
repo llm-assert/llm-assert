@@ -6,6 +6,7 @@ import type {
   TestCase,
   TestResult,
 } from "@playwright/test/reporter";
+import { randomUUID } from "node:crypto";
 import type {
   AssertionType,
   EvaluationRecord,
@@ -139,8 +140,11 @@ class LLMAssertReporter implements Reporter {
       return;
     }
 
+    const runId = randomUUID();
+
     const payload: IngestPayload = {
       project_slug: this.config.projectSlug,
+      run_id: runId,
       run: {
         started_at: this.startedAt,
         finished_at: new Date().toISOString(),
@@ -153,6 +157,7 @@ class LLMAssertReporter implements Reporter {
             : undefined,
         branch: process.env.GITHUB_REF_NAME ?? process.env.BRANCH_NAME,
         commit_sha: process.env.GITHUB_SHA ?? process.env.COMMIT_SHA,
+        metadata: this.config.metadata,
       },
       evaluations: this.evaluations.map((e) => ({
         assertion_type: e.assertionType,
