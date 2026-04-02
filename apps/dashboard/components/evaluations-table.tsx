@@ -11,7 +11,10 @@ import {
 import { PaginationControls } from "@/components/pagination-controls";
 import { ExpandableEvaluationRow } from "@/components/expandable-evaluation-row";
 import { getEvaluations } from "@/lib/queries/get-evaluations";
-import type { AssertionTypeFilter, ResultFilter } from "@/lib/queries/get-evaluations";
+import type {
+  AssertionTypeFilter,
+  ResultFilter,
+} from "@/lib/queries/get-evaluations";
 
 export async function EvaluationsTable({
   runId,
@@ -24,8 +27,11 @@ export async function EvaluationsTable({
   filters: { type?: AssertionTypeFilter; result?: ResultFilter };
   page: number;
 }) {
-  const { evaluations, totalCount, totalPages, perPage } =
-    await getEvaluations(runId, filters, page);
+  const { evaluations, totalCount, totalPages, perPage } = await getEvaluations(
+    runId,
+    filters,
+    page,
+  );
 
   // Out-of-range page handling
   if (page > totalPages && totalPages > 0) {
@@ -102,6 +108,8 @@ export async function EvaluationsTable({
               <ExpandableEvaluationRow
                 key={evaluation.id}
                 evaluation={evaluation}
+                projectSlug={projectSlug}
+                runId={runId}
               />
             ))}
           </TableBody>

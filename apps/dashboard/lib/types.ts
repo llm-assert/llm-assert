@@ -1,0 +1,19 @@
+export type Evaluation = {
+  id: string;
+  test_run_id: string;
+  assertion_type: string;
+  test_name: string;
+  test_file: string | null;
+  input_text: string | null;
+  context_text: string | null;
+  expected_value: string | null;
+  result: string;
+  score: number | null;
+  reasoning: string | null;
+  judge_model: string | null;
+  judge_latency_ms: number | null;
+  judge_cost_usd: number | null;
+  fallback_used: boolean;
+  threshold: number | null;
+  created_at: string;
+};
