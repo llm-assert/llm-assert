@@ -13,13 +13,19 @@ import type {
 
 export type {
   AssertionResult,
+  HardenedResult,
   JudgeConfig,
   ReporterConfig,
   EvaluationRecord,
   LLMAssertFixture,
   LLMAssertOptions,
+  FailureReason,
 } from "./types.js";
-export { JudgeClient, type JudgeEvaluator } from "./judge/client.js";
+export {
+  JudgeClient,
+  type JudgeEvaluator,
+  type Clock,
+} from "./judge/client.js";
 
 /** Attach evaluation data for the reporter to collect via result.attachments */
 async function attachEvaluation(
@@ -39,6 +45,31 @@ async function attachEvaluation(
 /** Map judge score to explicit result enum */
 function mapResult(score: number | null, pass: boolean): EvaluationResult {
   return score === null ? "inconclusive" : pass ? "pass" : "fail";
+}
+
+/** Format message, prefixing operational rejections with [LLMAssert] */
+function formatMessage(
+  reasoning: string,
+  score: number | null,
+  model: string,
+  latencyMs: number,
+  baseMessage: string,
+  rateLimited?: boolean,
+  backoffMs?: number,
+): string {
+  // Operational rejection — reasoning starts with [LLMAssert]
+  if (reasoning.startsWith("[LLMAssert]")) {
+    return reasoning;
+  }
+  let msg =
+    `${baseMessage}\n` +
+    `Score: ${score}\n` +
+    `Reasoning: ${reasoning}\n` +
+    `Judge: ${model} (${latencyMs}ms)`;
+  if (rateLimited && backoffMs) {
+    msg += `\n[LLMAssert] Evaluation was rate limited (+${backoffMs}ms backoff)`;
+  }
+  return msg;
 }
 
 /** Extended expect with LLMAssert matchers */
@@ -72,15 +103,25 @@ export const expect = baseExpect.extend({
       judgeModel: result.model,
       judgeLatencyMs: result.latencyMs,
       fallbackUsed: result.fallbackUsed,
+      inputTruncated: result.inputTruncated,
+      injectionDetected: result.injectionDetected,
+      rateLimited: result.rateLimited,
+      judgeBackoffMs: result.judgeBackoffMs,
+      failureReason: result.failureReason,
     });
 
     return {
       pass,
       message: () =>
-        `Expected output ${this.isNot ? "not " : ""}to be grounded in context\n` +
-        `Score: ${result.score}\n` +
-        `Reasoning: ${result.reasoning}\n` +
-        `Judge: ${result.model} (${result.latencyMs}ms)`,
+        formatMessage(
+          result.reasoning,
+          result.score,
+          result.model,
+          result.latencyMs,
+          `Expected output ${this.isNot ? "not " : ""}to be grounded in context`,
+          result.rateLimited,
+          result.judgeBackoffMs,
+        ),
       name: "toBeGroundedIn",
       expected: `score >= ${threshold}`,
       actual: result.score,
@@ -109,15 +150,25 @@ export const expect = baseExpect.extend({
       judgeModel: result.model,
       judgeLatencyMs: result.latencyMs,
       fallbackUsed: result.fallbackUsed,
+      inputTruncated: result.inputTruncated,
+      injectionDetected: result.injectionDetected,
+      rateLimited: result.rateLimited,
+      judgeBackoffMs: result.judgeBackoffMs,
+      failureReason: result.failureReason,
     });
 
     return {
       pass,
       message: () =>
-        `Expected output ${this.isNot ? "not " : ""}to be free of PII\n` +
-        `Score: ${result.score}\n` +
-        `Reasoning: ${result.reasoning}\n` +
-        `Judge: ${result.model} (${result.latencyMs}ms)`,
+        formatMessage(
+          result.reasoning,
+          result.score,
+          result.model,
+          result.latencyMs,
+          `Expected output ${this.isNot ? "not " : ""}to be free of PII`,
+          result.rateLimited,
+          result.judgeBackoffMs,
+        ),
       name: "toBeFreeOfPII",
       expected: `score >= ${threshold}`,
       actual: result.score,
@@ -152,15 +203,25 @@ export const expect = baseExpect.extend({
       judgeModel: result.model,
       judgeLatencyMs: result.latencyMs,
       fallbackUsed: result.fallbackUsed,
+      inputTruncated: result.inputTruncated,
+      injectionDetected: result.injectionDetected,
+      rateLimited: result.rateLimited,
+      judgeBackoffMs: result.judgeBackoffMs,
+      failureReason: result.failureReason,
     });
 
     return {
       pass,
       message: () =>
-        `Expected output ${this.isNot ? "not " : ""}to match tone "${descriptor}"\n` +
-        `Score: ${result.score}\n` +
-        `Reasoning: ${result.reasoning}\n` +
-        `Judge: ${result.model} (${result.latencyMs}ms)`,
+        formatMessage(
+          result.reasoning,
+          result.score,
+          result.model,
+          result.latencyMs,
+          `Expected output ${this.isNot ? "not " : ""}to match tone "${descriptor}"`,
+          result.rateLimited,
+          result.judgeBackoffMs,
+        ),
       name: "toMatchTone",
       expected: `score >= ${threshold}`,
       actual: result.score,
@@ -190,15 +251,25 @@ export const expect = baseExpect.extend({
       judgeModel: result.model,
       judgeLatencyMs: result.latencyMs,
       fallbackUsed: result.fallbackUsed,
+      inputTruncated: result.inputTruncated,
+      injectionDetected: result.injectionDetected,
+      rateLimited: result.rateLimited,
+      judgeBackoffMs: result.judgeBackoffMs,
+      failureReason: result.failureReason,
     });
 
     return {
       pass,
       message: () =>
-        `Expected output ${this.isNot ? "not " : ""}to comply with format\n` +
-        `Score: ${result.score}\n` +
-        `Reasoning: ${result.reasoning}\n` +
-        `Judge: ${result.model} (${result.latencyMs}ms)`,
+        formatMessage(
+          result.reasoning,
+          result.score,
+          result.model,
+          result.latencyMs,
+          `Expected output ${this.isNot ? "not " : ""}to comply with format`,
+          result.rateLimited,
+          result.judgeBackoffMs,
+        ),
       name: "toBeFormatCompliant",
       expected: `score >= ${threshold}`,
       actual: result.score,
@@ -234,15 +305,25 @@ export const expect = baseExpect.extend({
       judgeModel: result.model,
       judgeLatencyMs: result.latencyMs,
       fallbackUsed: result.fallbackUsed,
+      inputTruncated: result.inputTruncated,
+      injectionDetected: result.injectionDetected,
+      rateLimited: result.rateLimited,
+      judgeBackoffMs: result.judgeBackoffMs,
+      failureReason: result.failureReason,
     });
 
     return {
       pass,
       message: () =>
-        `Expected output ${this.isNot ? "not " : ""}to semantically match reference\n` +
-        `Score: ${result.score}\n` +
-        `Reasoning: ${result.reasoning}\n` +
-        `Judge: ${result.model} (${result.latencyMs}ms)`,
+        formatMessage(
+          result.reasoning,
+          result.score,
+          result.model,
+          result.latencyMs,
+          `Expected output ${this.isNot ? "not " : ""}to semantically match reference`,
+          result.rateLimited,
+          result.judgeBackoffMs,
+        ),
       name: "toSemanticMatch",
       expected: `score >= ${threshold}`,
       actual: result.score,

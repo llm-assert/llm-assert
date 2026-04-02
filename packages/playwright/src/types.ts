@@ -8,6 +8,18 @@ export interface AssertionResult {
   reasoning: string;
 }
 
+/** Extended assertion result with hardening metadata from judge evaluation */
+export type HardenedResult = AssertionResult & {
+  model: string;
+  latencyMs: number;
+  fallbackUsed: boolean;
+  inputTruncated?: boolean;
+  injectionDetected?: boolean;
+  rateLimited?: boolean;
+  judgeBackoffMs?: number;
+  failureReason?: FailureReason;
+};
+
 /** Judge model response shape — all prompts request this format */
 export interface JudgeResponse {
   score: number | null;
@@ -25,6 +37,14 @@ export type AssertionType =
 /** Result status for evaluations */
 export type EvaluationResult = "pass" | "fail" | "inconclusive";
 
+/** Reason why an evaluation failed or returned inconclusive */
+export type FailureReason =
+  | "provider_error"
+  | "rate_limited"
+  | "timeout"
+  | "parse_error"
+  | null;
+
 /** Configuration for the LLMAssert judge */
 export interface JudgeConfig {
   /** Primary model to use (default: 'gpt-5.4-mini') */
@@ -37,6 +57,17 @@ export interface JudgeConfig {
   openaiApiKey?: string;
   /** Anthropic API key (default: process.env.ANTHROPIC_API_KEY) */
   anthropicApiKey?: string;
+  /** Maximum combined input character length before rejection/truncation (default: 500000) */
+  maxInputChars?: number;
+  /** How to handle inputs exceeding maxInputChars (default: 'reject') */
+  inputHandling?: "reject" | "truncate";
+  /** Rate limiting configuration for judge API calls */
+  rateLimit?: {
+    /** Maximum requests per minute per worker (default: 60) */
+    requestsPerMinute: number;
+    /** Maximum burst capacity (default: 10) */
+    burstCapacity: number;
+  };
 }
 
 /** Configuration for the custom Playwright reporter */
@@ -77,6 +108,16 @@ export interface EvaluationRecord {
   fallbackUsed: boolean;
   /** Effective pass/fail threshold used by the matcher */
   threshold: number;
+  /** Whether input was truncated before sending to the judge */
+  inputTruncated?: boolean;
+  /** Whether prompt injection control sequences were detected and stripped */
+  injectionDetected?: boolean;
+  /** Whether rate limit backoff was incurred during evaluation */
+  rateLimited?: boolean;
+  /** Total milliseconds spent in rate limit backoff */
+  judgeBackoffMs?: number;
+  /** Reason for failure or inconclusive result */
+  failureReason?: FailureReason;
 }
 
 /** Fixture options configurable via playwright.config.ts use: { judgeConfig: {...} } */
@@ -101,6 +142,11 @@ export interface IngestPayload {
     branch?: string;
     commit_sha?: string;
     metadata?: Record<string, unknown>;
+    hardening_summary?: {
+      total_input_rejected: number;
+      total_rate_limited: number;
+      total_backoff_ms: number;
+    };
   };
   evaluations: Array<{
     assertion_type: string;
@@ -117,5 +163,10 @@ export interface IngestPayload {
     judge_cost_usd?: number;
     fallback_used: boolean;
     threshold: number;
+    input_truncated?: boolean;
+    injection_detected?: boolean;
+    rate_limited?: boolean;
+    judge_backoff_ms?: number;
+    failure_reason?: FailureReason;
   }>;
 }

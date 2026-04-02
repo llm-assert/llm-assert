@@ -114,4 +114,53 @@ test.describe("Reporter attachment parsing", () => {
     );
     expect(reporter.getEvaluations()).toHaveLength(0);
   });
+
+  test("rejects invalid failureReason value", () => {
+    const reporter = createReporter({ onError: "silent" });
+    reporter.begin();
+    reporter.onTestEnd(
+      makeTestCase("test"),
+      makeTestResultWithEval({
+        ...validEvalData,
+        failureReason: "unknown_error",
+      }),
+    );
+    expect(reporter.getEvaluations()).toHaveLength(0);
+  });
+
+  test("accepts valid failureReason value", () => {
+    const reporter = createReporter();
+    reporter.begin();
+    reporter.onTestEnd(
+      makeTestCase("test"),
+      makeTestResultWithEval({
+        ...validEvalData,
+        failureReason: "rate_limited",
+      }),
+    );
+    const evals = reporter.getEvaluations();
+    expect(evals).toHaveLength(1);
+    expect(evals[0].failureReason).toBe("rate_limited");
+  });
+
+  test("accepts hardening fields on attachment", () => {
+    const reporter = createReporter();
+    reporter.begin();
+    reporter.onTestEnd(
+      makeTestCase("test"),
+      makeTestResultWithEval({
+        ...validEvalData,
+        inputTruncated: true,
+        injectionDetected: false,
+        rateLimited: true,
+        judgeBackoffMs: 450,
+        failureReason: null,
+      }),
+    );
+    const evals = reporter.getEvaluations();
+    expect(evals).toHaveLength(1);
+    expect(evals[0].inputTruncated).toBe(true);
+    expect(evals[0].rateLimited).toBe(true);
+    expect(evals[0].judgeBackoffMs).toBe(450);
+  });
 });

@@ -11,6 +11,7 @@ import type {
   AssertionType,
   EvaluationRecord,
   EvaluationResult,
+  FailureReason,
   IngestPayload,
   ReporterConfig,
 } from "./types.js";
@@ -24,6 +25,13 @@ const VALID_ASSERTION_TYPES: AssertionType[] = [
   "fuzzy",
 ];
 const VALID_RESULTS: EvaluationResult[] = ["pass", "fail", "inconclusive"];
+const VALID_FAILURE_REASONS: FailureReason[] = [
+  "provider_error",
+  "rate_limited",
+  "timeout",
+  "parse_error",
+  null,
+];
 
 /** Parse and validate a JSON attachment body as a partial EvaluationRecord */
 function parseEvaluationAttachment(
@@ -51,6 +59,27 @@ function parseEvaluationAttachment(
   if (typeof d.judgeLatencyMs !== "number") return null;
   if (typeof d.threshold !== "number") return null;
 
+  // Validate optional hardening fields
+  if (d.inputTruncated !== undefined && typeof d.inputTruncated !== "boolean")
+    return null;
+  if (
+    d.injectionDetected !== undefined &&
+    typeof d.injectionDetected !== "boolean"
+  )
+    return null;
+  if (d.rateLimited !== undefined && typeof d.rateLimited !== "boolean")
+    return null;
+  if (
+    d.judgeBackoffMs !== undefined &&
+    (typeof d.judgeBackoffMs !== "number" || d.judgeBackoffMs < 0)
+  )
+    return null;
+  if (
+    d.failureReason !== undefined &&
+    !VALID_FAILURE_REASONS.includes(d.failureReason as FailureReason)
+  )
+    return null;
+
   return {
     assertionType: d.assertionType as AssertionType,
     inputText: typeof d.inputText === "string" ? d.inputText : "",
@@ -66,6 +95,16 @@ function parseEvaluationAttachment(
     judgeCostUsd:
       typeof d.judgeCostUsd === "number" ? d.judgeCostUsd : undefined,
     fallbackUsed: typeof d.fallbackUsed === "boolean" ? d.fallbackUsed : false,
+    inputTruncated:
+      typeof d.inputTruncated === "boolean" ? d.inputTruncated : undefined,
+    injectionDetected:
+      typeof d.injectionDetected === "boolean"
+        ? d.injectionDetected
+        : undefined,
+    rateLimited: typeof d.rateLimited === "boolean" ? d.rateLimited : undefined,
+    judgeBackoffMs:
+      typeof d.judgeBackoffMs === "number" ? d.judgeBackoffMs : undefined,
+    failureReason: (d.failureReason as FailureReason) ?? undefined,
   };
 }
 
@@ -158,6 +197,17 @@ class LLMAssertReporter implements Reporter {
         branch: process.env.GITHUB_REF_NAME ?? process.env.BRANCH_NAME,
         commit_sha: process.env.GITHUB_SHA ?? process.env.COMMIT_SHA,
         metadata: this.config.metadata,
+        hardening_summary: {
+          total_input_rejected: this.evaluations.filter(
+            (e) => e.inputTruncated || e.injectionDetected,
+          ).length,
+          total_rate_limited: this.evaluations.filter((e) => e.rateLimited)
+            .length,
+          total_backoff_ms: this.evaluations.reduce(
+            (sum, e) => sum + (e.judgeBackoffMs ?? 0),
+            0,
+          ),
+        },
       },
       evaluations: this.evaluations.map((e) => ({
         assertion_type: e.assertionType,
@@ -174,6 +224,11 @@ class LLMAssertReporter implements Reporter {
         judge_cost_usd: e.judgeCostUsd,
         fallback_used: e.fallbackUsed,
         threshold: e.threshold,
+        input_truncated: e.inputTruncated,
+        injection_detected: e.injectionDetected,
+        rate_limited: e.rateLimited,
+        judge_backoff_ms: e.judgeBackoffMs,
+        failure_reason: e.failureReason,
       })),
     };
 

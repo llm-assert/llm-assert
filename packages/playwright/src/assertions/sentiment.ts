@@ -1,6 +1,15 @@
-import { JudgeClient, type JudgeEvaluator } from "../judge/client.js";
+import {
+  JudgeClient,
+  type JudgeEvaluator,
+  DEFAULT_CONFIG,
+} from "../judge/client.js";
 import { SENTIMENT_SYSTEM, SENTIMENT_USER } from "../judge/prompts.js";
-import type { AssertionResult, JudgeConfig } from "../types.js";
+import {
+  stripControlSequences,
+  validateInputLength,
+} from "../judge/sanitize.js";
+import { log } from "../logger.js";
+import type { HardenedResult, JudgeConfig } from "../types.js";
 
 /**
  * Evaluate whether text matches a described tone/sentiment.
@@ -11,9 +20,7 @@ export async function evaluateSentiment(
   descriptor: string,
   config?: JudgeConfig,
   client?: JudgeEvaluator,
-): Promise<
-  AssertionResult & { model: string; latencyMs: number; fallbackUsed: boolean }
-> {
+): Promise<HardenedResult> {
   if (!input || input.trim().length === 0) {
     return {
       pass: false,
@@ -25,11 +32,51 @@ export async function evaluateSentiment(
     };
   }
 
-  const judge = client ?? new JudgeClient(config);
-  const { response, model, latencyMs, fallbackUsed } = await judge.evaluate(
-    SENTIMENT_SYSTEM,
-    SENTIMENT_USER(descriptor, input),
+  const maxChars = config?.maxInputChars ?? DEFAULT_CONFIG.maxInputChars;
+  const handling = config?.inputHandling ?? DEFAULT_CONFIG.inputHandling;
+
+  const lengthCheck = validateInputLength(
+    [input, descriptor],
+    maxChars,
+    handling,
   );
+  if (!lengthCheck.valid) {
+    log("warn", "input.rejected.too_long", {
+      assertionType: "sentiment",
+      inputLengthChars: input.length + descriptor.length,
+      maxChars,
+    });
+    return {
+      pass: false,
+      score: null,
+      reasoning: `[LLMAssert] Input rejected: ${lengthCheck.reason}`,
+      model: "none",
+      latencyMs: 0,
+      fallbackUsed: false,
+      failureReason: null,
+    };
+  }
+
+  let processedInput = lengthCheck.texts[0];
+  let processedDescriptor = lengthCheck.texts[1];
+  const inputSan = stripControlSequences(processedInput);
+  const descSan = stripControlSequences(processedDescriptor);
+  processedInput = inputSan.text;
+  processedDescriptor = descSan.text;
+  const injectionDetected = inputSan.stripped || descSan.stripped;
+
+  if (injectionDetected) {
+    log("warn", "input.rejected.injection_suspected", {
+      assertionType: "sentiment",
+    });
+  }
+
+  const judge = client ?? new JudgeClient(config);
+  const { response, model, latencyMs, fallbackUsed, failureReason, backoffMs } =
+    await judge.evaluate(
+      SENTIMENT_SYSTEM,
+      SENTIMENT_USER(processedDescriptor, processedInput),
+    );
 
   if (response.score === null) {
     return {
@@ -39,6 +86,11 @@ export async function evaluateSentiment(
       model,
       latencyMs,
       fallbackUsed,
+      inputTruncated: lengthCheck.truncated || undefined,
+      injectionDetected: injectionDetected || undefined,
+      rateLimited: backoffMs > 0 || undefined,
+      judgeBackoffMs: backoffMs > 0 ? backoffMs : undefined,
+      failureReason,
     };
   }
 
@@ -49,5 +101,10 @@ export async function evaluateSentiment(
     model,
     latencyMs,
     fallbackUsed,
+    inputTruncated: lengthCheck.truncated || undefined,
+    injectionDetected: injectionDetected || undefined,
+    rateLimited: backoffMs > 0 || undefined,
+    judgeBackoffMs: backoffMs > 0 ? backoffMs : undefined,
+    failureReason,
   };
 }
