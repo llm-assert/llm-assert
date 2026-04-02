@@ -10,6 +10,13 @@ const ASSERTION_TYPES = [
 
 const EVALUATION_RESULTS = ["pass", "fail", "inconclusive"] as const;
 
+const FAILURE_REASONS = [
+  "provider_error",
+  "rate_limited",
+  "timeout",
+  "parse_error",
+] as const;
+
 const EvaluationSchema = z
   .object({
     assertion_type: z.enum(ASSERTION_TYPES),
@@ -26,6 +33,11 @@ const EvaluationSchema = z
     judge_cost_usd: z.number().nonnegative().optional(),
     fallback_used: z.boolean(),
     threshold: z.number().min(0).max(1),
+    input_truncated: z.boolean().optional(),
+    injection_detected: z.boolean().optional(),
+    rate_limited: z.boolean().optional(),
+    judge_backoff_ms: z.number().nonnegative().optional(),
+    failure_reason: z.enum(FAILURE_REASONS).nullable().optional(),
   })
   .refine((e) => e.result === "inconclusive" || e.score !== null, {
     message: "score must not be null unless result is inconclusive",
@@ -49,6 +61,13 @@ export const IngestPayloadSchema = z.object({
     branch: z.string().max(500).optional(),
     commit_sha: z.string().max(100).optional(),
     metadata: z.record(z.string(), z.unknown()).optional(),
+    hardening_summary: z
+      .object({
+        total_input_rejected: z.number().nonnegative(),
+        total_rate_limited: z.number().nonnegative(),
+        total_backoff_ms: z.number().nonnegative(),
+      })
+      .optional(),
   }),
   evaluations: z.array(EvaluationSchema).min(1).max(500),
 });

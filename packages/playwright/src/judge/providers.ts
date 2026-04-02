@@ -6,6 +6,22 @@ export interface JudgeProvider {
   call(systemPrompt: string, userPrompt: string): Promise<string>;
 }
 
+/** Thrown when a provider returns HTTP 429 — distinguished from other errors */
+export class RateLimitError extends Error {
+  constructor(providerName: string) {
+    super(`Rate limited by ${providerName}`);
+    this.name = "RateLimitError";
+  }
+}
+
+/** Thrown when a provider request times out — distinguished from other errors */
+export class ProviderTimeoutError extends Error {
+  constructor(providerName: string) {
+    super(`Request to ${providerName} timed out`);
+    this.name = "ProviderTimeoutError";
+  }
+}
+
 /** OpenAI provider — uses chat.completions with JSON mode */
 export class OpenAIProvider implements JudgeProvider {
   readonly name = "openai";
@@ -22,19 +38,29 @@ export class OpenAIProvider implements JudgeProvider {
   }
 
   async call(systemPrompt: string, userPrompt: string): Promise<string> {
-    const completion = await this.client.chat.completions.create({
-      model: this.model,
-      messages: [
-        { role: "developer", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      response_format: { type: "json_object" },
-    });
+    try {
+      const completion = await this.client.chat.completions.create({
+        model: this.model,
+        messages: [
+          { role: "developer", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        response_format: { type: "json_object" },
+      });
 
-    const content = completion.choices[0]?.message?.content;
-    if (!content) throw new Error("Empty response from OpenAI judge model");
+      const content = completion.choices[0]?.message?.content;
+      if (!content) throw new Error("Empty response from OpenAI judge model");
 
-    return content;
+      return content;
+    } catch (error) {
+      if (error instanceof OpenAI.APIConnectionTimeoutError) {
+        throw new ProviderTimeoutError("openai");
+      }
+      if (error instanceof OpenAI.APIError && error.status === 429) {
+        throw new RateLimitError("openai");
+      }
+      throw error;
+    }
   }
 }
 
@@ -56,27 +82,48 @@ export class AnthropicProvider implements JudgeProvider {
   }
 
   async call(systemPrompt: string, userPrompt: string): Promise<string> {
-    const message = await this.client.messages.create({
-      model: this.model,
-      max_tokens: 1024,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userPrompt }],
-    });
+    try {
+      const message = await this.client.messages.create({
+        model: this.model,
+        max_tokens: 1024,
+        system: systemPrompt,
+        messages: [{ role: "user", content: userPrompt }],
+      });
 
-    const block = message.content[0];
-    if (!block || block.type !== "text") {
-      throw new Error("Empty response from Anthropic judge model");
+      const block = message.content[0];
+      if (!block || block.type !== "text") {
+        throw new Error("Empty response from Anthropic judge model");
+      }
+
+      const text = block.text;
+
+      // Handle occasional preamble before JSON
+      if (!text.trimStart().startsWith("{")) {
+        const match = text.match(/\{[\s\S]*\}/);
+        if (match) return match[0];
+      }
+
+      return text;
+    } catch (error) {
+      // Detect timeout errors (Anthropic SDK throws APIConnectionTimeoutError)
+      if (
+        error instanceof Error &&
+        (error.name === "APIConnectionTimeoutError" ||
+          /timeout/i.test(error.message))
+      ) {
+        throw new ProviderTimeoutError("anthropic");
+      }
+      // Anthropic SDK throws APIError with status property
+      if (
+        error &&
+        typeof error === "object" &&
+        "status" in error &&
+        (error as { status: number }).status === 429
+      ) {
+        throw new RateLimitError("anthropic");
+      }
+      throw error;
     }
-
-    const text = block.text;
-
-    // Handle occasional preamble before JSON
-    if (!text.trimStart().startsWith("{")) {
-      const match = text.match(/\{[\s\S]*\}/);
-      if (match) return match[0];
-    }
-
-    return text;
   }
 }
 
