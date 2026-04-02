@@ -7,9 +7,9 @@ create or replace function public.create_project_with_key(
   p_user_id     uuid,
   p_name        text,
   p_slug        text,
-  p_description text    default null,
   p_key_hash    text,
-  p_key_prefix  text
+  p_key_prefix  text,
+  p_description text    default null
 )
 returns table (
   status     text,
@@ -68,7 +68,8 @@ grant execute on function public.create_project_with_key(
 
 comment on function public.create_project_with_key(
   uuid, text, text, text, text, text
-) is
+)
+ is
   'Atomically creates a project and its first API key. Catches unique '
   'violation on (user_id, slug) and returns {status: slug_taken}. '
   'Called from dashboard server action via SSR client (.rpc).';

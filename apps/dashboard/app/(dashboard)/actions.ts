@@ -60,9 +60,9 @@ export async function createProjectAction(
     p_user_id: user.id,
     p_name: name,
     p_slug: slug,
-    p_description: description,
     p_key_hash: key.hash,
     p_key_prefix: key.prefix,
+    p_description: description,
   });
 
   if (error) {
