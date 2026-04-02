@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { publicEnv } from "@/lib/env";
+import { validateNextUrl } from "@/lib/utils";
 
 /**
  * Derive the allowed host for redirect validation.
@@ -14,13 +15,7 @@ function getAllowedHost(): string {
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  let next = searchParams.get("next") ?? "/";
-
-  // Open redirect protection: only allow relative paths that don't start
-  // with // (protocol-relative URLs that browsers interpret as external).
-  if (!next.startsWith("/") || next.startsWith("//")) {
-    next = "/";
-  }
+  const next = validateNextUrl(searchParams.get("next"));
 
   if (code) {
     const supabase = await createClient();
