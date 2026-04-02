@@ -1,8 +1,8 @@
 export default function Home() {
   return (
-    <main>
-      <h1>LLM Assert</h1>
-      <p>Dashboard coming soon.</p>
-    </main>
+    <div>
+      <h1 className="text-2xl font-semibold">Dashboard</h1>
+      <p className="mt-2 text-muted-foreground">Dashboard coming soon.</p>
+    </div>
   );
 }
