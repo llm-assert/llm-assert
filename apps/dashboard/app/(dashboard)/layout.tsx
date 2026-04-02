@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
-import { DashboardHeader } from "@/components/dashboard-header";
 
 export default async function DashboardLayout({
   children,
@@ -37,12 +36,7 @@ export default async function DashboardLayout({
       </a>
       <SidebarProvider defaultOpen={defaultOpen}>
         <AppSidebar user={dashboardUser} />
-        <SidebarInset id="main-content">
-          <DashboardHeader />
-          <div className="flex-1 p-4">
-            {children}
-          </div>
-        </SidebarInset>
+        <SidebarInset id="main-content">{children}</SidebarInset>
       </SidebarProvider>
     </>
   );

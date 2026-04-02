@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { DashboardHeader } from "@/components/dashboard-header";
 import { CreateProjectDialog } from "@/components/create-project-dialog";
 import { EmptyState } from "@/components/empty-state";
 import {
@@ -16,7 +17,14 @@ export default async function ProjectsPage() {
     .order("updated_at", { ascending: false });
 
   if (!projects || projects.length === 0) {
-    return <EmptyState />;
+    return (
+      <>
+        <DashboardHeader />
+        <div className="flex-1 p-4">
+          <EmptyState />
+        </div>
+      </>
+    );
   }
 
   const projectIds = projects.map((p) => p.id);
@@ -47,21 +55,24 @@ export default async function ProjectsPage() {
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Projects</h1>
-        <CreateProjectDialog />
+    <>
+      <DashboardHeader />
+      <div className="flex-1 p-4">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold">Projects</h1>
+          <CreateProjectDialog />
+        </div>
+        <ul className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {projects.map((project: ProjectData) => (
+            <li key={project.id}>
+              <ProjectCard
+                project={project}
+                latestRun={latestRunByProject.get(project.id) ?? null}
+              />
+            </li>
+          ))}
+        </ul>
       </div>
-      <ul className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {projects.map((project: ProjectData) => (
-          <li key={project.id}>
-            <ProjectCard
-              project={project}
-              latestRun={latestRunByProject.get(project.id) ?? null}
-            />
-          </li>
-        ))}
-      </ul>
-    </div>
+    </>
   );
 }
