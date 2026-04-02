@@ -37,6 +37,18 @@ export function formatScore(score: number | null): string {
   return score.toFixed(2);
 }
 
+export function formatCost(costUsd: number | null): string {
+  if (costUsd === null) return "—";
+  if (costUsd === 0 || costUsd < 0.0001) return "<$0.0001";
+  return `$${costUsd.toFixed(4)}`;
+}
+
+export function formatLatency(latencyMs: number | null): string {
+  if (latencyMs === null) return "—";
+  if (latencyMs < 1000) return `${Math.round(latencyMs)}ms`;
+  return `${(latencyMs / 1000).toFixed(1)}s`;
+}
+
 export function getPassRateColor(passed: number, failed: number): string {
   const total = passed + failed;
   if (total === 0) return "";

@@ -1,51 +1,23 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { TableCell, TableRow } from "@/components/ui/table";
+import { ResultBadge } from "@/components/result-badge";
+import { DetailSection } from "@/components/detail-section";
 import { Badge } from "@/components/ui/badge";
-import { formatScore } from "@/lib/format";
-
-type Evaluation = {
-  id: string;
-  assertion_type: string;
-  test_name: string;
-  test_file: string | null;
-  input_text: string | null;
-  context_text: string | null;
-  expected_value: string | null;
-  result: string;
-  score: number | null;
-  reasoning: string | null;
-  judge_model: string | null;
-  judge_latency_ms: number | null;
-  judge_cost_usd: number | null;
-  fallback_used: boolean;
-  threshold: number | null;
-};
-
-function ResultBadge({ result }: { result: string }) {
-  const styles: Record<string, string> = {
-    pass: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
-    fail: "bg-red-500/10 text-red-500 border-red-500/20",
-    inconclusive: "bg-amber-500/10 text-amber-500 border-amber-500/20",
-  };
-
-  return (
-    <Badge
-      variant="outline"
-      className={`${styles[result] ?? ""} capitalize`}
-    >
-      {result}
-      <span className="sr-only"> result</span>
-    </Badge>
-  );
-}
+import { formatScore, formatLatency, formatCost } from "@/lib/format";
+import type { Evaluation } from "@/lib/types";
 
 export function ExpandableEvaluationRow({
   evaluation,
+  projectSlug,
+  runId,
 }: {
   evaluation: Evaluation;
+  projectSlug: string;
+  runId: string;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const detailId = `eval-detail-${evaluation.id}`;
@@ -57,7 +29,12 @@ export function ExpandableEvaluationRow({
           {evaluation.assertion_type}
         </TableCell>
         <TableCell className="max-w-[250px] truncate text-sm">
-          {evaluation.test_name}
+          <Link
+            href={`/projects/${projectSlug}/runs/${runId}/evaluations/${evaluation.id}`}
+            className="hover:underline underline-offset-4"
+          >
+            {evaluation.test_name}
+          </Link>
         </TableCell>
         <TableCell>
           <ResultBadge result={evaluation.result} />
@@ -67,6 +44,7 @@ export function ExpandableEvaluationRow({
         </TableCell>
         <TableCell className="w-10">
           <button
+            type="button"
             onClick={() => setIsExpanded(!isExpanded)}
             aria-expanded={isExpanded}
             aria-controls={detailId}
@@ -113,7 +91,10 @@ export function ExpandableEvaluationRow({
               <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t pt-3 text-muted-foreground">
                 {evaluation.score !== null && (
                   <span>
-                    Score: <strong className="text-foreground">{formatScore(evaluation.score)}</strong>
+                    Score:{" "}
+                    <strong className="text-foreground">
+                      {formatScore(evaluation.score)}
+                    </strong>
                     {evaluation.threshold !== null && (
                       <> / threshold: {evaluation.threshold.toFixed(2)}</>
                     )}
@@ -135,13 +116,11 @@ export function ExpandableEvaluationRow({
                 )}
 
                 {evaluation.judge_latency_ms !== null && (
-                  <span>
-                    {(evaluation.judge_latency_ms / 1000).toFixed(1)}s
-                  </span>
+                  <span>{formatLatency(evaluation.judge_latency_ms)}</span>
                 )}
 
                 {evaluation.judge_cost_usd !== null && (
-                  <span>${evaluation.judge_cost_usd.toFixed(4)}</span>
+                  <span>{formatCost(evaluation.judge_cost_usd)}</span>
                 )}
 
                 {evaluation.test_file && (
@@ -155,22 +134,5 @@ export function ExpandableEvaluationRow({
         </TableRow>
       )}
     </>
-  );
-}
-
-function DetailSection({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
-        {label}
-      </dt>
-      <dd className="whitespace-pre-wrap break-words">{children}</dd>
-    </div>
   );
 }
