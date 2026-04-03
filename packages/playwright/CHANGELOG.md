@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1
+
+### Patch Changes
+
+- [#29](https://github.com/llm-assert/llm-assert/pull/29) [`4cf9006`](https://github.com/llm-assert/llm-assert/commit/4cf90063a6fd399ea27cd51403980cf4cadbb8f3) Thanks [@Cporter97](https://github.com/Cporter97)! - Verify changesets release pipeline
+
 ## 0.2.0 (2026-04-01)
 
 ### Breaking Changes
