@@ -234,14 +234,46 @@ describe("POST /api/webhooks/stripe", () => {
       expect(mockUpsert).not.toHaveBeenCalled();
     });
 
-    it("updates status to canceled on subscription.deleted", async () => {
+    it("syncs plan, status, period dates, and evaluation limit on subscription.updated", async () => {
+      const periodStart = Math.floor(Date.now() / 1000);
+      const periodEnd = periodStart + 30 * 24 * 60 * 60;
+      const body = buildEvent("customer.subscription.updated", {
+        customer: "cus_updated",
+        status: "active",
+        items: {
+          data: [
+            {
+              price: { id: "price_pro_test" },
+              current_period_start: periodStart,
+              current_period_end: periodEnd,
+            },
+          ],
+        },
+      });
+
+      const res = await POST(makeRequest(body));
+      expect(res.status).toBe(200);
+      expect(mockUpdate).toHaveBeenCalledWith({
+        plan: "pro",
+        status: "active",
+        current_period_start: new Date(periodStart * 1000).toISOString(),
+        current_period_end: new Date(periodEnd * 1000).toISOString(),
+        evaluation_limit: 25000,
+      });
+      expect(mockEq).toHaveBeenCalledWith("stripe_customer_id", "cus_updated");
+    });
+
+    it("updates status to canceled and clears period end on subscription.deleted", async () => {
       const body = buildEvent("customer.subscription.deleted", {
         customer: "cus_123",
       });
 
       const res = await POST(makeRequest(body));
       expect(res.status).toBe(200);
-      expect(mockUpdate).toHaveBeenCalledWith({ status: "canceled" });
+      expect(mockUpdate).toHaveBeenCalledWith({
+        status: "canceled",
+        current_period_end: null,
+      });
       expect(mockEq).toHaveBeenCalledWith("stripe_customer_id", "cus_123");
     });
 
@@ -256,12 +288,15 @@ describe("POST /api/webhooks/stripe", () => {
       expect(mockEq).toHaveBeenCalledWith("stripe_customer_id", "cus_456");
     });
 
-    it("updates status to active on invoice.paid", async () => {
+    it("updates status to active and resets evaluations_used on invoice.paid", async () => {
       const body = buildEvent("invoice.paid", { customer: "cus_789" });
 
       const res = await POST(makeRequest(body));
       expect(res.status).toBe(200);
-      expect(mockUpdate).toHaveBeenCalledWith({ status: "active" });
+      expect(mockUpdate).toHaveBeenCalledWith({
+        status: "active",
+        evaluations_used: 0,
+      });
       expect(mockEq).toHaveBeenCalledWith("stripe_customer_id", "cus_789");
     });
 

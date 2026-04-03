@@ -1,7 +1,7 @@
 import { stripe } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
 
-export async function POST(request: Request): Promise<Response> {
+export async function POST(_request: Request): Promise<Response> {
   if (!stripe) {
     return Response.json({ error: "Stripe not configured" }, { status: 503 });
   }
@@ -29,11 +29,12 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  const origin = request.headers.get("origin") ?? "http://localhost:3000";
+  // Pin to server-side env var, not Origin header
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
   const session = await stripe.billingPortal.sessions.create({
     customer: subscription.stripe_customer_id,
-    return_url: `${origin}/settings/billing`,
+    return_url: `${appUrl}/settings/billing`,
   });
 
   return Response.json({ url: session.url });

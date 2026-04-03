@@ -176,7 +176,7 @@ async function handleSubscriptionDeleted(
 
   const { error } = await db
     .from("subscriptions")
-    .update({ status: "canceled" })
+    .update({ status: "canceled", current_period_end: null })
     .eq("stripe_customer_id", customerId);
 
   if (error) throw error;
@@ -212,7 +212,7 @@ async function handleInvoicePaid(
 
   const { error } = await db
     .from("subscriptions")
-    .update({ status: "active" })
+    .update({ status: "active", evaluations_used: 0 })
     .eq("stripe_customer_id", customerId);
 
   if (error) throw error;

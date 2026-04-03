@@ -46,8 +46,8 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  // Build checkout session params
-  const origin = request.headers.get("origin") ?? "http://localhost:3000";
+  // Build checkout session params — pin to server-side env var, not Origin header
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
@@ -56,8 +56,8 @@ export async function POST(request: Request): Promise<Response> {
     ...(subscription?.stripe_customer_id
       ? { customer: subscription.stripe_customer_id }
       : { customer_email: user.email }),
-    success_url: `${origin}/settings/billing?checkout=success`,
-    cancel_url: `${origin}/settings/billing`,
+    success_url: `${appUrl}/settings/billing?checkout=success`,
+    cancel_url: `${appUrl}/settings/billing`,
   });
 
   return Response.json({ url: session.url });
