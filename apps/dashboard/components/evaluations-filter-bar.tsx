@@ -38,7 +38,11 @@ export function EvaluationsFilterBar({
   function updateFilter(key: string, value: string) {
     // Build params from current filter props (avoids useSearchParams Suspense requirement)
     const params = new URLSearchParams();
-    const state = { type: currentType, result: currentResult, [key]: value === "all" ? undefined : value };
+    const state = {
+      type: currentType,
+      result: currentResult,
+      [key]: value === "all" ? undefined : value,
+    };
     if (state.type) params.set("type", state.type);
     if (state.result) params.set("result", state.result);
     // Reset page to 1 on filter change (don't carry over page param)
@@ -52,7 +56,10 @@ export function EvaluationsFilterBar({
         value={currentType ?? "all"}
         onValueChange={(v) => updateFilter("type", v)}
       >
-        <SelectTrigger className="w-[160px]" aria-label="Filter by assertion type">
+        <SelectTrigger
+          className="w-[160px]"
+          aria-label="Filter by assertion type"
+        >
           <SelectValue placeholder="All types" />
         </SelectTrigger>
         <SelectContent>

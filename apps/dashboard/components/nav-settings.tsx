@@ -14,7 +14,11 @@ import {
 
 const items = [
   { title: "API Keys", href: "/settings/keys", icon: Key },
-  { title: "Thresholds", href: "/settings/thresholds", icon: SlidersHorizontal },
+  {
+    title: "Thresholds",
+    href: "/settings/thresholds",
+    icon: SlidersHorizontal,
+  },
   { title: "Billing", href: "/settings/billing", icon: CreditCard },
 ];
 

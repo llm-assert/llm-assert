@@ -1,8 +1,5 @@
 import { IngestPayloadSchema } from "../schema";
-import {
-  buildIngestPayload,
-  assertFactoryDefaults,
-} from "@/test/factories";
+import { buildIngestPayload, assertFactoryDefaults } from "@/test/factories";
 
 describe("IngestPayloadSchema", () => {
   it("accepts a valid payload", () => {

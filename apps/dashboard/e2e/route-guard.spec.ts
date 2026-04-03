@@ -25,9 +25,7 @@ test.describe("open redirect protection (SEC-04)", () => {
   test("auth callback rejects backslash bypass in next param", async ({
     page,
   }) => {
-    await page.goto(
-      "/auth/callback?next=" + encodeURIComponent("/\\evil.com"),
-    );
+    await page.goto("/auth/callback?next=" + encodeURIComponent("/\\evil.com"));
     await expect(page).not.toHaveURL(/evil\.com/);
   });
 
