@@ -20,6 +20,8 @@ out/
 
 # Playwright test artifacts
 test-results/
+playwright-report/
+.auth/
 
 # Test coverage
 coverage/

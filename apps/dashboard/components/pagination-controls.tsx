@@ -58,7 +58,8 @@ export function PaginationControls({
   const from = (currentPage - 1) * perPage + 1;
   const to = Math.min(currentPage * perPage, totalCount);
   const singular = noun.endsWith("s") ? noun.slice(0, -1) : noun;
-  const href = (page: number) => buildHref ? buildHref(page) : `?page=${page}`;
+  const href = (page: number) =>
+    buildHref ? buildHref(page) : `?page=${page}`;
 
   if (totalPages <= 1) {
     return (

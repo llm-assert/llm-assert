@@ -68,20 +68,13 @@ export function NavUser({
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              disabled={isPending}
-              asChild
-            >
+            <DropdownMenuItem disabled={isPending} asChild>
               <button
                 type="button"
                 onClick={() => startTransition(() => signOutAction())}
                 className="w-full"
               >
-                {isPending ? (
-                  <Loader2 className="animate-spin" />
-                ) : (
-                  <LogOut />
-                )}
+                {isPending ? <Loader2 className="animate-spin" /> : <LogOut />}
                 {isPending ? "Signing out…" : "Sign out"}
               </button>
             </DropdownMenuItem>
