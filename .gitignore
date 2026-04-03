@@ -21,7 +21,9 @@ out/
 # Playwright test artifacts
 test-results/
 playwright-report/
-.auth/
+
+# Playwright auth state (contains live session JWTs — never commit)
+**/e2e/.auth/
 
 # Test coverage
 coverage/

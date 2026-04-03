@@ -78,6 +78,9 @@ importers:
         specifier: ^4.3.6
         version: 4.3.6
     devDependencies:
+      '@playwright/test':
+        specifier: ^1.58.2
+        version: 1.58.2
       '@tailwindcss/postcss':
         specifier: ^4.2.2
         version: 4.2.2
@@ -102,6 +105,9 @@ importers:
       '@vitest/coverage-v8':
         specifier: ^3.1.1
         version: 3.2.4(vitest@3.2.4(@types/node@22.19.15)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.32.0))
+      dotenv:
+        specifier: ^17.4.0
+        version: 17.4.0
       eslint:
         specifier: ^9.39.4
         version: 9.39.4(jiti@2.6.1)
@@ -2411,6 +2417,10 @@ packages:
   dot-prop@5.3.0:
     resolution: {integrity: sha512-QM8q3zDe58hqUqjraQOmzZ1LIH9SWQJTlEKCH4kJ2oQvLZk7RbQXvtDM2XEq3fwkV9CCvvH4LA0AV+ogFsBM2Q==}
     engines: {node: '>=8'}
+
+  dotenv@17.4.0:
+    resolution: {integrity: sha512-kCKF62fwtzwYm0IGBNjRUjtJgMfGapII+FslMHIjMR5KTnwEmBmWLDRSnc3XSNP8bNy34tekgQyDT0hr7pERRQ==}
+    engines: {node: '>=12'}
 
   dotenv@8.6.0:
     resolution: {integrity: sha512-IrPdXQsk2BbzvCBGBOTmmSH5SodmqZNt4ERAZDmW4CT+tL8VtvinqywuANaFu4bOMWki16nqf0e4oC0QIaDr/g==}
@@ -6173,6 +6183,8 @@ snapshots:
   dot-prop@5.3.0:
     dependencies:
       is-obj: 2.0.0
+
+  dotenv@17.4.0: {}
 
   dotenv@8.6.0: {}
 
