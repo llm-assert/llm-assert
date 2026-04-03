@@ -4,7 +4,7 @@ export default {
     "scope-enum": [
       2,
       "always",
-      ["playwright", "judge", "dashboard", "db", "ci", "deps"],
+      ["playwright", "judge", "dashboard", "db", "ci", "deps", "release"],
     ],
     "scope-empty": [1, "never"],
     "header-max-length": [2, "always", 100],
