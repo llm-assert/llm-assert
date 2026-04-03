@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.2
+
+### Patch Changes
+
+- [#32](https://github.com/llm-assert/llm-assert/pull/32) [`8466bce`](https://github.com/llm-assert/llm-assert/commit/8466bce7371f0765e33f03426260b9329eadebef) Thanks [@Cporter97](https://github.com/Cporter97)! - Verify npm trusted publishing pipeline
+
 ## 0.2.1
 
 ### Patch Changes
