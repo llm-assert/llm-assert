@@ -87,12 +87,27 @@
   * {
     @apply border-border;
   }
+  html {
+    scroll-behavior: smooth;
+  }
   body {
     @apply bg-background text-foreground;
   }
 }
 
+/* Offset anchor targets below sticky header (h-14 = 3.5rem) */
+[id="hero"],
+[id="features"],
+[id="how-it-works"],
+[id="pricing"],
+[id="cta"] {
+  scroll-margin-top: 4rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
   .recharts-wrapper * {
     animation: none !important;
     transition: none !important;

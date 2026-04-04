@@ -36,7 +36,7 @@ export default async function ProjectOverviewPage({
     <>
       <DashboardHeader
         breadcrumbs={[
-          { label: "Projects", href: "/" },
+          { label: "Projects", href: "/dashboard" },
           { label: project.name },
         ]}
       />

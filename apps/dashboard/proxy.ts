@@ -46,6 +46,7 @@ export async function proxy(request: NextRequest) {
 
   // Public paths that don't require authentication
   const isPublicPath =
+    pathname === "/" ||
     pathname.startsWith("/sign-in") ||
     pathname.startsWith("/sign-up") ||
     pathname.startsWith("/auth/callback") ||
@@ -65,15 +66,13 @@ export async function proxy(request: NextRequest) {
     return redirectResponse;
   }
 
-  // Redirect authenticated users away from auth pages
+  // Redirect authenticated users away from auth pages to dashboard
   if (
     user &&
-    isPublicPath &&
-    !pathname.startsWith("/auth/callback") &&
-    !pathname.startsWith("/auth/error")
+    (pathname.startsWith("/sign-in") || pathname.startsWith("/sign-up"))
   ) {
     const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = "/";
+    redirectUrl.pathname = "/dashboard";
     redirectUrl.search = "";
     const redirectResponse = NextResponse.redirect(redirectUrl);
     supabaseResponse.cookies.getAll().forEach((cookie) => {

@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 test.describe("authenticated smoke tests", () => {
   test("dashboard loads with user email visible", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/dashboard");
 
     // Should be on the dashboard, not redirected to sign-in
     await expect(page).not.toHaveURL(/sign-in/);
@@ -13,7 +13,7 @@ test.describe("authenticated smoke tests", () => {
   });
 
   test("sign out redirects to sign-in", async ({ page, context }) => {
-    await page.goto("/");
+    await page.goto("/dashboard");
     await expect(page).not.toHaveURL(/sign-in/);
 
     // Clear the Supabase auth session by deleting all cookies.
@@ -24,7 +24,7 @@ test.describe("authenticated smoke tests", () => {
     await context.clearCookies();
 
     // Navigating after cookie clearance should trigger route guard redirect
-    await page.goto("/");
+    await page.goto("/dashboard");
     await expect(page).toHaveURL(/sign-in/);
   });
 });

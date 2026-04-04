@@ -74,7 +74,7 @@ test.describe("onboarding checklist", () => {
   });
 
   test("new user sees full onboarding checklist", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/dashboard");
 
     // Should see the onboarding checklist, not the old empty state
     await expect(
@@ -92,7 +92,7 @@ test.describe("onboarding checklist", () => {
   test("user with project but no runs sees banner", async ({ page }) => {
     await seedProject(userId);
 
-    await page.goto("/");
+    await page.goto("/dashboard");
 
     // Should see the banner variant with install instructions
     await expect(
@@ -112,7 +112,7 @@ test.describe("onboarding checklist", () => {
     const projectId = await seedProject(userId);
     await seedTestRun(projectId, userId);
 
-    await page.goto("/");
+    await page.goto("/dashboard");
 
     // Should see normal project grid with no onboarding
     await expect(page.getByText("Projects")).toBeVisible();
@@ -126,7 +126,7 @@ test.describe("onboarding checklist", () => {
   });
 
   test("dismiss checklist persists across refresh", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/dashboard");
 
     // Should see onboarding
     await expect(page.getByText("Welcome to LLMAssert")).toBeVisible();

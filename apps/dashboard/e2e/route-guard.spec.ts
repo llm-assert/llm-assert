@@ -1,8 +1,18 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("unauthenticated route guards", () => {
-  test("visiting / without auth redirects to /sign-in", async ({ page }) => {
+  test("visiting / without auth shows landing page (public)", async ({
+    page,
+  }) => {
     await page.goto("/");
+    await expect(page).toHaveURL("/");
+    await expect(page).not.toHaveURL(/sign-in/);
+  });
+
+  test("visiting /dashboard without auth redirects to /sign-in", async ({
+    page,
+  }) => {
+    await page.goto("/dashboard");
     await expect(page).toHaveURL(/sign-in/);
   });
 

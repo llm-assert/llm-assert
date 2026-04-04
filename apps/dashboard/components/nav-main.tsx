@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/sidebar";
 
 const items = [
-  { title: "Projects", href: "/", icon: FolderKanban },
+  { title: "Projects", href: "/dashboard", icon: FolderKanban },
   { title: "Test Runs", href: "/runs", icon: FlaskConical },
 ];
 
@@ -30,8 +30,8 @@ export function NavMain() {
               <SidebarMenuButton
                 asChild
                 isActive={
-                  item.href === "/"
-                    ? pathname === "/"
+                  item.href === "/dashboard"
+                    ? pathname === "/dashboard"
                     : pathname.startsWith(item.href)
                 }
               >

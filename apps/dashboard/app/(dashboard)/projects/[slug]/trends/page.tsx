@@ -53,7 +53,7 @@ export default async function TrendsPage({
     <>
       <DashboardHeader
         breadcrumbs={[
-          { label: "Projects", href: "/" },
+          { label: "Projects", href: "/dashboard" },
           { label: project.name, href: `/projects/${project.slug}` },
           { label: "Trends" },
         ]}
