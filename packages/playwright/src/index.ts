@@ -5,6 +5,7 @@ import { evaluateSentiment } from "./assertions/sentiment.js";
 import { evaluateSchema } from "./assertions/schema.js";
 import { evaluateFuzzy } from "./assertions/fuzzy.js";
 import { getWorkerJudgeClient } from "./singleton.js";
+import { resolveThreshold } from "./threshold/client.js";
 import type {
   EvaluationRecord,
   EvaluationResult,
@@ -20,6 +21,8 @@ export type {
   LLMAssertFixture,
   LLMAssertOptions,
   FailureReason,
+  ThresholdSource,
+  RemoteThresholds,
 } from "./types.js";
 export {
   JudgeClient,
@@ -88,7 +91,8 @@ export const expect = baseExpect.extend({
       options?.config,
       client,
     );
-    const threshold = options?.threshold ?? 0.7;
+    const resolved = resolveThreshold("groundedness", options?.threshold);
+    const threshold = resolved.value;
     const pass = result.score !== null && result.score >= threshold;
 
     await attachEvaluation({
@@ -97,6 +101,7 @@ export const expect = baseExpect.extend({
       contextText: context,
       expectedValue: `score >= ${threshold}`,
       threshold,
+      thresholdSource: resolved.source,
       result: mapResult(result.score, pass),
       score: result.score,
       reasoning: result.reasoning,
@@ -136,7 +141,8 @@ export const expect = baseExpect.extend({
       ? undefined
       : (getWorkerJudgeClient() ?? undefined);
     const result = await evaluatePII(input, options?.config, client);
-    const threshold = options?.threshold ?? 0.7;
+    const resolved = resolveThreshold("pii", options?.threshold);
+    const threshold = resolved.value;
     const pass = result.score !== null && result.score >= threshold;
 
     await attachEvaluation({
@@ -144,6 +150,7 @@ export const expect = baseExpect.extend({
       inputText: input,
       expectedValue: `score >= ${threshold}`,
       threshold,
+      thresholdSource: resolved.source,
       result: mapResult(result.score, pass),
       score: result.score,
       reasoning: result.reasoning,
@@ -189,7 +196,8 @@ export const expect = baseExpect.extend({
       options?.config,
       client,
     );
-    const threshold = options?.threshold ?? 0.7;
+    const resolved = resolveThreshold("sentiment", options?.threshold);
+    const threshold = resolved.value;
     const pass = result.score !== null && result.score >= threshold;
 
     await attachEvaluation({
@@ -197,6 +205,7 @@ export const expect = baseExpect.extend({
       inputText: input,
       expectedValue: descriptor,
       threshold,
+      thresholdSource: resolved.source,
       result: mapResult(result.score, pass),
       score: result.score,
       reasoning: result.reasoning,
@@ -237,7 +246,8 @@ export const expect = baseExpect.extend({
       ? undefined
       : (getWorkerJudgeClient() ?? undefined);
     const result = await evaluateSchema(input, schema, options?.config, client);
-    const threshold = options?.threshold ?? 0.7;
+    const resolved = resolveThreshold("schema", options?.threshold);
+    const threshold = resolved.value;
     const pass = result.score !== null && result.score >= threshold;
 
     await attachEvaluation({
@@ -245,6 +255,7 @@ export const expect = baseExpect.extend({
       inputText: input,
       expectedValue: schema,
       threshold,
+      thresholdSource: resolved.source,
       result: mapResult(result.score, pass),
       score: result.score,
       reasoning: result.reasoning,
@@ -281,16 +292,17 @@ export const expect = baseExpect.extend({
     expected: string,
     options?: { threshold?: number; config?: JudgeConfig },
   ) {
-    const threshold = options?.threshold ?? 0.7;
+    const resolved = resolveThreshold("fuzzy", options?.threshold);
+    const threshold = resolved.value;
     const client = options?.config
       ? undefined
       : (getWorkerJudgeClient() ?? undefined);
     const result = await evaluateFuzzy(
       input,
       expected,
-      threshold,
       options?.config,
       client,
+      threshold,
     );
     const pass = result.score !== null && result.score >= threshold;
 
@@ -299,6 +311,7 @@ export const expect = baseExpect.extend({
       inputText: input,
       expectedValue: expected,
       threshold,
+      thresholdSource: resolved.source,
       result: mapResult(result.score, pass),
       score: result.score,
       reasoning: result.reasoning,

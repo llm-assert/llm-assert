@@ -83,13 +83,26 @@ export default async function ThresholdsPage({
         </Suspense>
       </div>
 
-      <div className="flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950/50 dark:text-blue-200">
+      <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
         <Info className="mt-0.5 size-4 shrink-0" />
-        <p>
-          These thresholds affect how evaluation results are displayed in the
-          dashboard. They do not change how tests pass or fail in CI — plugin
-          thresholds are configured in your <code>playwright.config.ts</code>.
-        </p>
+        <div>
+          <p>
+            These thresholds affect CI test pass/fail when your plugin is
+            configured with <code>dashboardUrl</code> and <code>apiKey</code> in
+            your reporter config:
+          </p>
+          <pre className="mt-2 rounded bg-amber-100 px-2 py-1 text-xs dark:bg-amber-900/50">
+            {`reporter: [['@llmassert/playwright/reporter', {
+  apiKey: process.env.LLMASSERT_API_KEY,
+  projectSlug: 'your-project',
+  dashboardUrl: 'https://llmassert.com',
+}]]`}
+          </pre>
+          <p className="mt-1.5">
+            Inline <code>options.threshold</code> overrides in test code take
+            precedence over these values.
+          </p>
+        </div>
       </div>
 
       <ThresholdsForm

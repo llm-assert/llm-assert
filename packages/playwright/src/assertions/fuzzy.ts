@@ -18,9 +18,9 @@ import type { HardenedResult, JudgeConfig } from "../types.js";
 export async function evaluateFuzzy(
   input: string,
   expected: string,
-  threshold: number = 0.7,
   config?: JudgeConfig,
   client?: JudgeEvaluator,
+  threshold = 0.7,
 ): Promise<HardenedResult> {
   if (!input || input.trim().length === 0) {
     return {

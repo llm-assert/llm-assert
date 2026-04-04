@@ -27,9 +27,9 @@ test.describe("Operational rejection messages", () => {
     const result = await evaluateFuzzy(
       "a".repeat(600),
       "b".repeat(600),
-      0.7,
       { maxInputChars: 1000 },
       mockPassingJudge(),
+      0.7,
     );
     expect(result.reasoning).toMatch(/^\[LLMAssert\] Input rejected:/);
   });

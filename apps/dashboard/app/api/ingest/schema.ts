@@ -17,6 +17,8 @@ const FAILURE_REASONS = [
   "parse_error",
 ] as const;
 
+const THRESHOLD_SOURCES = ["inline", "remote", "default"] as const;
+
 const EvaluationSchema = z
   .object({
     assertion_type: z.enum(ASSERTION_TYPES),
@@ -33,6 +35,7 @@ const EvaluationSchema = z
     judge_cost_usd: z.number().nonnegative().optional(),
     fallback_used: z.boolean(),
     threshold: z.number().min(0).max(1),
+    threshold_source: z.enum(THRESHOLD_SOURCES).optional(),
     input_truncated: z.boolean().optional(),
     injection_detected: z.boolean().optional(),
     rate_limited: z.boolean().optional(),

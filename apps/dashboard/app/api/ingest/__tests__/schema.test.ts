@@ -154,4 +154,30 @@ describe("IngestPayloadSchema", () => {
       }
     });
   });
+
+  describe("threshold_source field", () => {
+    it("accepts valid threshold_source values", () => {
+      for (const source of ["inline", "remote", "default"]) {
+        const payload = buildIngestPayload({
+          evaluations: [{ threshold_source: source }],
+        });
+        const result = IngestPayloadSchema.safeParse(payload);
+        expect(result.success).toBe(true);
+      }
+    });
+
+    it("accepts payload without threshold_source (backward compatible)", () => {
+      const payload = buildIngestPayload();
+      const result = IngestPayloadSchema.safeParse(payload);
+      expect(result.success).toBe(true);
+    });
+
+    it("rejects invalid threshold_source value", () => {
+      const payload = buildIngestPayload({
+        evaluations: [{ threshold_source: "unknown" }],
+      });
+      const result = IngestPayloadSchema.safeParse(payload);
+      expect(result.success).toBe(false);
+    });
+  });
 });
