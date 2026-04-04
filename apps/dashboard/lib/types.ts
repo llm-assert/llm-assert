@@ -12,6 +12,8 @@ export type Evaluation = {
   reasoning: string | null;
   judge_model: string | null;
   judge_latency_ms: number | null;
+  judge_input_tokens?: number | null;
+  judge_output_tokens?: number | null;
   judge_cost_usd: number | null;
   fallback_used: boolean;
   threshold: number | null;

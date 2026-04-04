@@ -73,11 +73,19 @@ export async function evaluateSentiment(
   }
 
   const judge = client ?? new JudgeClient(config);
-  const { response, model, latencyMs, fallbackUsed, failureReason, backoffMs } =
-    await judge.evaluate(
-      SENTIMENT_SYSTEM,
-      SENTIMENT_USER(processedDescriptor, processedInput),
-    );
+  const {
+    response,
+    model,
+    latencyMs,
+    fallbackUsed,
+    failureReason,
+    backoffMs,
+    usage,
+    costUsd,
+  } = await judge.evaluate(
+    SENTIMENT_SYSTEM,
+    SENTIMENT_USER(processedDescriptor, processedInput),
+  );
 
   if (response.score === null) {
     return {
@@ -92,6 +100,9 @@ export async function evaluateSentiment(
       rateLimited: backoffMs > 0 || undefined,
       judgeBackoffMs: backoffMs > 0 ? backoffMs : undefined,
       failureReason,
+      judgeInputTokens: usage?.inputTokens,
+      judgeOutputTokens: usage?.outputTokens,
+      judgeCostUsd: costUsd,
     };
   }
 
@@ -107,5 +118,8 @@ export async function evaluateSentiment(
     rateLimited: backoffMs > 0 || undefined,
     judgeBackoffMs: backoffMs > 0 ? backoffMs : undefined,
     failureReason,
+    judgeInputTokens: usage?.inputTokens,
+    judgeOutputTokens: usage?.outputTokens,
+    judgeCostUsd: costUsd,
   };
 }

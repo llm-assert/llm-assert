@@ -61,4 +61,28 @@ test.describe("evaluateGroundedness", () => {
     expect(result.model).toBe("test-model");
     expect(result.fallbackUsed).toBe(true);
   });
+
+  test("includes token usage and cost in result", async () => {
+    const judge = createMockJudge({
+      score: 0.85,
+      usage: { inputTokens: 450, outputTokens: 75 },
+      costUsd: 0.000112,
+    });
+    const result = await evaluateGroundedness("text", "ctx", undefined, judge);
+    expect(result.judgeInputTokens).toBe(450);
+    expect(result.judgeOutputTokens).toBe(75);
+    expect(result.judgeCostUsd).toBe(0.000112);
+  });
+
+  test("omits token fields when judge returns no usage", async () => {
+    const result = await evaluateGroundedness(
+      "text",
+      "context",
+      undefined,
+      mockPassingJudge(),
+    );
+    expect(result.judgeInputTokens).toBeUndefined();
+    expect(result.judgeOutputTokens).toBeUndefined();
+    expect(result.judgeCostUsd).toBeUndefined();
+  });
 });

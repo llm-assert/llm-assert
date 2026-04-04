@@ -69,11 +69,19 @@ export async function evaluateSchema(
   }
 
   const judge = client ?? new JudgeClient(config);
-  const { response, model, latencyMs, fallbackUsed, failureReason, backoffMs } =
-    await judge.evaluate(
-      SCHEMA_SYSTEM,
-      SCHEMA_USER(processedSchema, processedInput),
-    );
+  const {
+    response,
+    model,
+    latencyMs,
+    fallbackUsed,
+    failureReason,
+    backoffMs,
+    usage,
+    costUsd,
+  } = await judge.evaluate(
+    SCHEMA_SYSTEM,
+    SCHEMA_USER(processedSchema, processedInput),
+  );
 
   if (response.score === null) {
     return {
@@ -88,6 +96,9 @@ export async function evaluateSchema(
       rateLimited: backoffMs > 0 || undefined,
       judgeBackoffMs: backoffMs > 0 ? backoffMs : undefined,
       failureReason,
+      judgeInputTokens: usage?.inputTokens,
+      judgeOutputTokens: usage?.outputTokens,
+      judgeCostUsd: costUsd,
     };
   }
 
@@ -103,5 +114,8 @@ export async function evaluateSchema(
     rateLimited: backoffMs > 0 || undefined,
     judgeBackoffMs: backoffMs > 0 ? backoffMs : undefined,
     failureReason,
+    judgeInputTokens: usage?.inputTokens,
+    judgeOutputTokens: usage?.outputTokens,
+    judgeCostUsd: costUsd,
   };
 }
