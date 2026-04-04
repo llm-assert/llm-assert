@@ -46,20 +46,24 @@ export function PaginationControls({
   totalCount,
   perPage,
   noun = "runs",
-  buildHref,
+  baseParams,
 }: {
   currentPage: number;
   totalPages: number;
   totalCount: number;
   perPage: number;
   noun?: string;
-  buildHref?: (page: number) => string;
+  /** Extra search params to preserve when paginating (serializable from Server Components) */
+  baseParams?: Record<string, string>;
 }) {
   const from = (currentPage - 1) * perPage + 1;
   const to = Math.min(currentPage * perPage, totalCount);
   const singular = noun.endsWith("s") ? noun.slice(0, -1) : noun;
-  const href = (page: number) =>
-    buildHref ? buildHref(page) : `?page=${page}`;
+  const href = (page: number) => {
+    const params = new URLSearchParams(baseParams);
+    params.set("page", String(page));
+    return `?${params.toString()}`;
+  };
 
   if (totalPages <= 1) {
     return (

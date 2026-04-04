@@ -53,13 +53,53 @@ export default async function smokeSetup() {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  // Look up the test user
+  // Look up the test user — create if it doesn't exist yet
+  const testPassword = process.env.E2E_TEST_PASSWORD;
+  if (!testPassword) {
+    throw new Error("Missing required env var: E2E_TEST_PASSWORD");
+  }
+
   const { data: listData } = await db.auth.admin.listUsers();
-  const testUser = listData?.users.find((u) => u.email === testEmail);
+  let testUser = listData?.users.find((u) => u.email === testEmail);
+
   if (!testUser) {
-    throw new Error(
-      `Test user ${testEmail} not found. Run dashboard e2e setup first.`,
-    );
+    const { data: created, error: createError } =
+      await db.auth.admin.createUser({
+        email: testEmail,
+        password: testPassword,
+        email_confirm: true,
+      });
+    if (createError || !created.user) {
+      throw new Error(`Failed to create test user: ${createError?.message}`);
+    }
+    testUser = created.user;
+    console.info(`[smoke-setup] Created test user: ${testEmail}`);
+  }
+
+  // Ensure test user has an active subscription (required by ingest quota check)
+  const { data: existingSub } = await db
+    .from("subscriptions")
+    .select("id")
+    .eq("user_id", testUser.id)
+    .eq("status", "active")
+    .maybeSingle();
+
+  if (!existingSub) {
+    const { error: subError } = await db.from("subscriptions").insert({
+      user_id: testUser.id,
+      stripe_customer_id: `cus_smoke_${Date.now()}`,
+      stripe_subscription_id: `sub_smoke_${Date.now()}`,
+      plan: "free",
+      status: "active",
+      evaluation_limit: 1000,
+      evaluations_used: 0,
+    });
+    if (subError) {
+      throw new Error(
+        `Failed to create smoke test subscription: ${subError.message}`,
+      );
+    }
+    console.info("[smoke-setup] Created test subscription");
   }
 
   // Create a test project with unique slug
