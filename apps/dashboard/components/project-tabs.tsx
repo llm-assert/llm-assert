@@ -19,9 +19,7 @@ export function ProjectTabs({ slug }: { slug: string }) {
       {TABS.map((tab) => {
         const href = `${base}${tab.segment}`;
         const isActive =
-          tab.segment === ""
-            ? pathname === base
-            : pathname.startsWith(href);
+          tab.segment === "" ? pathname === base : pathname.startsWith(href);
 
         return (
           <Link
