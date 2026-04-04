@@ -1,11 +1,13 @@
-import { test as base } from "@playwright/test";
+import { test as base, type FullConfig } from "@playwright/test";
 import type {
   JudgeConfig,
   LLMAssertFixture,
   LLMAssertOptions,
+  ReporterConfig,
 } from "./types.js";
 import { DEFAULT_CONFIG, JudgeClient } from "./judge/client.js";
 import { setWorkerJudgeClient } from "./singleton.js";
+import { ThresholdClient, setWorkerThresholds } from "./threshold/client.js";
 
 export type { LLMAssertFixture, LLMAssertOptions };
 
@@ -34,12 +36,80 @@ export type { LLMAssertFixture, LLMAssertOptions };
  * });
  * ```
  */
+/**
+ * Extract ReporterConfig from the Playwright config's reporter array.
+ * Finds the entry matching '@llmassert/playwright/reporter' and returns its options.
+ *
+ * Matches both direct package names and resolved paths (e.g. require.resolve output)
+ * by checking if the reporter name ends with the package reporter path.
+ */
+const REPORTER_SUFFIX = "@llmassert/playwright/reporter";
+
+function extractReporterConfig(
+  config: FullConfig,
+): Partial<ReporterConfig> | null {
+  for (const entry of config.reporter) {
+    if (!Array.isArray(entry)) continue;
+    const [name, options] = entry;
+    if (
+      typeof name === "string" &&
+      (name === REPORTER_SUFFIX || name.endsWith(`/${REPORTER_SUFFIX}`))
+    ) {
+      return (options as Partial<ReporterConfig>) ?? null;
+    }
+  }
+  return null;
+}
+
 export const test = base.extend<
   { llmAssert: LLMAssertFixture },
-  { judgeConfig: Partial<JudgeConfig>; _workerJudge: void }
+  {
+    judgeConfig: Partial<JudgeConfig>;
+    _workerJudge: void;
+    _workerThresholds: void;
+  }
 >({
   // Configurable via playwright.config.ts use: { judgeConfig: { ... } }
   judgeConfig: [{}, { option: true, scope: "worker" }],
+
+  // Auto worker fixture: fetches thresholds from dashboard when configured
+  _workerThresholds: [
+    async ({}, use, workerInfo) => {
+      const reporterConfig = extractReporterConfig(workerInfo.config);
+
+      if (
+        reporterConfig?.dashboardUrl &&
+        reporterConfig?.apiKey &&
+        reporterConfig?.projectSlug
+      ) {
+        const onError = reporterConfig.onThresholdFetchError ?? "warn";
+        try {
+          const client = new ThresholdClient({
+            dashboardUrl: reporterConfig.dashboardUrl,
+            apiKey: reporterConfig.apiKey,
+            projectSlug: reporterConfig.projectSlug,
+          });
+          const thresholds = await client.fetch();
+          setWorkerThresholds(thresholds);
+        } catch (err) {
+          const message = `[LLMAssert] Dashboard thresholds unavailable: ${err instanceof Error ? err.message : String(err)}. Using defaults.`;
+          switch (onError) {
+            case "throw":
+              throw new Error(message);
+            case "warn":
+              console.warn(message);
+              break;
+            case "silent":
+              break;
+          }
+        }
+      }
+
+      await use();
+      setWorkerThresholds(null);
+    },
+    { scope: "worker", auto: true },
+  ],
 
   // Auto worker fixture: creates JudgeClient, sets module-level singleton
   _workerJudge: [

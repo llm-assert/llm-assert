@@ -1,10 +1,18 @@
 "use client";
 
-import { useState, useActionState } from "react";
+import { useState, useActionState, useRef } from "react";
 import { RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   saveThresholdsAction,
   type SaveThresholdsState,
@@ -54,13 +62,25 @@ export function ThresholdsForm({
       thresholds.map((t) => [t.assertionType, String(t.value)]),
     ),
   );
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
   function updateValue(assertionType: string, value: string) {
     setValues((prev) => ({ ...prev, [assertionType]: value }));
   }
 
+  function handleSubmitClick(e: React.MouseEvent<HTMLButtonElement>) {
+    e.preventDefault();
+    setConfirmOpen(true);
+  }
+
+  function handleConfirm() {
+    setConfirmOpen(false);
+    formRef.current?.requestSubmit();
+  }
+
   return (
-    <form action={formAction} className="space-y-6">
+    <form ref={formRef} action={formAction} className="space-y-6">
       <input type="hidden" name="projectId" value={projectId} />
 
       <div className="space-y-4">
@@ -109,13 +129,14 @@ export function ThresholdsForm({
       </div>
 
       <div className="flex items-center gap-3">
-        <Button type="submit" disabled={isPending}>
+        <Button type="button" disabled={isPending} onClick={handleSubmitClick}>
           {isPending ? "Saving…" : "Save Changes"}
         </Button>
 
         {state.success && (
           <p role="status" className="text-sm text-emerald-600">
-            Thresholds saved successfully.
+            Thresholds updated. Changes will apply to future CI runs using
+            dashboard thresholds.
           </p>
         )}
         {state.error && (
@@ -128,6 +149,25 @@ export function ThresholdsForm({
           </p>
         )}
       </div>
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update thresholds?</DialogTitle>
+            <DialogDescription>
+              Changing thresholds may affect your CI pipeline results. Tests
+              using dashboard thresholds will use these new values on their next
+              run.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleConfirm}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </form>
   );
 }

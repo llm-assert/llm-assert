@@ -8,11 +8,15 @@ export interface AssertionResult {
   reasoning: string;
 }
 
+/** Source of the effective threshold used for an evaluation */
+export type ThresholdSource = "inline" | "remote" | "default";
+
 /** Extended assertion result with hardening metadata from judge evaluation */
 export type HardenedResult = AssertionResult & {
   model: string;
   latencyMs: number;
   fallbackUsed: boolean;
+  thresholdSource?: ThresholdSource;
   inputTruncated?: boolean;
   injectionDetected?: boolean;
   rateLimited?: boolean;
@@ -86,6 +90,8 @@ export interface ReporterConfig {
   retries?: number;
   /** Error handling mode (default: 'warn') */
   onError?: "warn" | "throw" | "silent";
+  /** Error handling mode for threshold fetch failures (default: 'warn') */
+  onThresholdFetchError?: "warn" | "throw" | "silent";
   /** Arbitrary metadata attached to the run */
   metadata?: Record<string, unknown>;
 }
@@ -108,6 +114,8 @@ export interface EvaluationRecord {
   fallbackUsed: boolean;
   /** Effective pass/fail threshold used by the matcher */
   threshold: number;
+  /** Source of the effective threshold: inline override, remote dashboard, or default */
+  thresholdSource?: ThresholdSource;
   /** Whether input was truncated before sending to the judge */
   inputTruncated?: boolean;
   /** Whether prompt injection control sequences were detected and stripped */
@@ -129,6 +137,9 @@ export interface LLMAssertOptions {
 export interface LLMAssertFixture {
   readonly judgeConfig: JudgeConfig;
 }
+
+/** Remote thresholds fetched from the dashboard API, keyed by assertion type */
+export type RemoteThresholds = Partial<Record<AssertionType, number>> | null;
 
 /** Payload sent to POST /api/ingest */
 export interface IngestPayload {
@@ -163,6 +174,7 @@ export interface IngestPayload {
     judge_cost_usd?: number;
     fallback_used: boolean;
     threshold: number;
+    threshold_source?: ThresholdSource;
     input_truncated?: boolean;
     injection_detected?: boolean;
     rate_limited?: boolean;

@@ -1,6 +1,7 @@
 import { test as baseTest, expect as baseExpect } from "@playwright/test";
 import { expect } from "../../src/index.js";
 import { setWorkerJudgeClient } from "../../src/singleton.js";
+import { setWorkerThresholds } from "../../src/threshold/client.js";
 import {
   createMockJudge,
   mockPassingJudge,
@@ -11,6 +12,7 @@ const test = baseTest;
 
 test.afterEach(() => {
   setWorkerJudgeClient(null);
+  setWorkerThresholds(null);
 });
 
 test.describe("toBeGroundedIn", () => {
@@ -61,5 +63,31 @@ test.describe("toBeGroundedIn", () => {
     baseExpect(data.score).toBe(0.9);
     baseExpect(typeof data.reasoning).toBe("string");
     baseExpect(typeof data.threshold).toBe("number");
+    baseExpect(data.thresholdSource).toBe("default");
+  });
+
+  test("thresholdSource is 'inline' when threshold option is passed", async ({}, testInfo) => {
+    setWorkerJudgeClient(mockPassingJudge());
+    await expect("text").toBeGroundedIn("context", { threshold: 0.5 });
+
+    const attachment = testInfo.attachments.find(
+      (a) => a.name === "llmassert-eval",
+    );
+    const data = JSON.parse(attachment!.body!.toString());
+    baseExpect(data.thresholdSource).toBe("inline");
+    baseExpect(data.threshold).toBe(0.5);
+  });
+
+  test("thresholdSource is 'remote' when using dashboard threshold", async ({}, testInfo) => {
+    setWorkerJudgeClient(mockPassingJudge());
+    setWorkerThresholds({ groundedness: 0.85 });
+    await expect("text").toBeGroundedIn("context");
+
+    const attachment = testInfo.attachments.find(
+      (a) => a.name === "llmassert-eval",
+    );
+    const data = JSON.parse(attachment!.body!.toString());
+    baseExpect(data.thresholdSource).toBe("remote");
+    baseExpect(data.threshold).toBe(0.85);
   });
 });

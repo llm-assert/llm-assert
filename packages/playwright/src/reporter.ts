@@ -87,6 +87,11 @@ function parseEvaluationAttachment(
     expectedValue:
       typeof d.expectedValue === "string" ? d.expectedValue : undefined,
     threshold: d.threshold as number,
+    thresholdSource:
+      typeof d.thresholdSource === "string" &&
+      ["inline", "remote", "default"].includes(d.thresholdSource)
+        ? (d.thresholdSource as EvaluationRecord["thresholdSource"])
+        : undefined,
     result: d.result as EvaluationResult,
     score: d.score as number | null,
     reasoning: d.reasoning as string,
@@ -224,6 +229,7 @@ class LLMAssertReporter implements Reporter {
         judge_cost_usd: e.judgeCostUsd,
         fallback_used: e.fallbackUsed,
         threshold: e.threshold,
+        threshold_source: e.thresholdSource,
         input_truncated: e.inputTruncated,
         injection_detected: e.injectionDetected,
         rate_limited: e.rateLimited,

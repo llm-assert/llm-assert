@@ -19,6 +19,7 @@ export async function evaluatePII(
   input: string,
   config?: JudgeConfig,
   client?: JudgeEvaluator,
+  threshold = 0.7,
 ): Promise<HardenedResult> {
   if (!input || input.trim().length === 0) {
     return {
@@ -82,7 +83,7 @@ export async function evaluatePII(
   }
 
   return {
-    pass: response.score >= 0.7,
+    pass: response.score >= threshold,
     score: response.score,
     reasoning: response.reasoning,
     model,

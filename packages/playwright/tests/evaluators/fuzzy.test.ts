@@ -12,9 +12,9 @@ test.describe("evaluateFuzzy", () => {
     const result = await evaluateFuzzy(
       "hello world",
       "hi world",
-      0.7,
       undefined,
       mockPassingJudge(),
+      0.7,
     );
     expect(result.pass).toBe(true);
     expect(result.score).toBe(0.9);
@@ -25,16 +25,16 @@ test.describe("evaluateFuzzy", () => {
     const result = await evaluateFuzzy(
       "hello",
       "goodbye",
-      0.7,
       undefined,
       mockFailingJudge(),
+      0.7,
     );
     expect(result.pass).toBe(false);
     expect(result.score).toBe(0.2);
   });
 
   test("returns fail with score 0 for empty input", async () => {
-    const result = await evaluateFuzzy("", "reference", 0.7);
+    const result = await evaluateFuzzy("", "reference");
     expect(result.pass).toBe(false);
     expect(result.score).toBe(0);
     expect(result.model).toBe("none");
@@ -45,9 +45,9 @@ test.describe("evaluateFuzzy", () => {
     const result = await evaluateFuzzy(
       "hello",
       "hi",
-      0.7,
       undefined,
       mockInconclusiveJudge(),
+      0.7,
     );
     expect(result.pass).toBe(false);
     expect(result.score).toBeNull();
@@ -61,7 +61,7 @@ test.describe("evaluateFuzzy", () => {
       latencyMs: 42,
       fallbackUsed: true,
     });
-    const result = await evaluateFuzzy("a", "b", 0.7, undefined, judge);
+    const result = await evaluateFuzzy("a", "b", undefined, judge, 0.7);
     expect(result.model).toBe("custom-model");
     expect(result.latencyMs).toBe(42);
     expect(result.fallbackUsed).toBe(true);
