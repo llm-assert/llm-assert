@@ -6,8 +6,8 @@ import { FakeClock } from "../helpers/fake-clock.js";
 function mockProvider(response: string): JudgeProvider {
   return {
     name: "mock",
-    async call(): Promise<string> {
-      return response;
+    async call() {
+      return { text: response };
     },
   };
 }

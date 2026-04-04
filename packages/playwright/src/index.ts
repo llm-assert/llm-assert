@@ -23,7 +23,9 @@ export type {
   FailureReason,
   ThresholdSource,
   RemoteThresholds,
+  TokenUsage,
 } from "./types.js";
+export { calculateCostUsd } from "./judge/pricing.js";
 export {
   JudgeClient,
   type JudgeEvaluator,
@@ -113,6 +115,9 @@ export const expect = baseExpect.extend({
       rateLimited: result.rateLimited,
       judgeBackoffMs: result.judgeBackoffMs,
       failureReason: result.failureReason,
+      judgeInputTokens: result.judgeInputTokens,
+      judgeOutputTokens: result.judgeOutputTokens,
+      judgeCostUsd: result.judgeCostUsd,
     });
 
     return {
@@ -162,6 +167,9 @@ export const expect = baseExpect.extend({
       rateLimited: result.rateLimited,
       judgeBackoffMs: result.judgeBackoffMs,
       failureReason: result.failureReason,
+      judgeInputTokens: result.judgeInputTokens,
+      judgeOutputTokens: result.judgeOutputTokens,
+      judgeCostUsd: result.judgeCostUsd,
     });
 
     return {
@@ -217,6 +225,9 @@ export const expect = baseExpect.extend({
       rateLimited: result.rateLimited,
       judgeBackoffMs: result.judgeBackoffMs,
       failureReason: result.failureReason,
+      judgeInputTokens: result.judgeInputTokens,
+      judgeOutputTokens: result.judgeOutputTokens,
+      judgeCostUsd: result.judgeCostUsd,
     });
 
     return {
@@ -267,6 +278,9 @@ export const expect = baseExpect.extend({
       rateLimited: result.rateLimited,
       judgeBackoffMs: result.judgeBackoffMs,
       failureReason: result.failureReason,
+      judgeInputTokens: result.judgeInputTokens,
+      judgeOutputTokens: result.judgeOutputTokens,
+      judgeCostUsd: result.judgeCostUsd,
     });
 
     return {
@@ -323,6 +337,9 @@ export const expect = baseExpect.extend({
       rateLimited: result.rateLimited,
       judgeBackoffMs: result.judgeBackoffMs,
       failureReason: result.failureReason,
+      judgeInputTokens: result.judgeInputTokens,
+      judgeOutputTokens: result.judgeOutputTokens,
+      judgeCostUsd: result.judgeCostUsd,
     });
 
     return {

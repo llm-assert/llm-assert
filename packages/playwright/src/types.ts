@@ -22,7 +22,16 @@ export type HardenedResult = AssertionResult & {
   rateLimited?: boolean;
   judgeBackoffMs?: number;
   failureReason?: FailureReason;
+  judgeInputTokens?: number;
+  judgeOutputTokens?: number;
+  judgeCostUsd?: number;
 };
+
+/** Token usage data from a judge API call */
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+}
 
 /** Judge model response shape — all prompts request this format */
 export interface JudgeResponse {
@@ -65,6 +74,8 @@ export interface JudgeConfig {
   maxInputChars?: number;
   /** How to handle inputs exceeding maxInputChars (default: 'reject') */
   inputHandling?: "reject" | "truncate";
+  /** Custom pricing overrides for judge models (per-token rates in USD) */
+  pricing?: Record<string, { inputPerToken: number; outputPerToken: number }>;
   /** Rate limiting configuration for judge API calls */
   rateLimit?: {
     /** Maximum requests per minute per worker (default: 60) */
@@ -109,6 +120,11 @@ export interface EvaluationRecord {
   reasoning: string;
   judgeModel: string;
   judgeLatencyMs: number;
+  /** Input tokens consumed by the judge API call */
+  judgeInputTokens?: number;
+  /** Output tokens consumed by the judge API call */
+  judgeOutputTokens?: number;
+  /** Computed cost in USD from the price table */
   judgeCostUsd?: number;
   /** Whether a fallback provider was used instead of the primary */
   fallbackUsed: boolean;
@@ -171,6 +187,8 @@ export interface IngestPayload {
     reasoning: string;
     judge_model: string;
     judge_latency_ms: number;
+    judge_input_tokens?: number;
+    judge_output_tokens?: number;
     judge_cost_usd?: number;
     fallback_used: boolean;
     threshold: number;

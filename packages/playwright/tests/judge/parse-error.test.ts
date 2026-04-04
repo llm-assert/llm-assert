@@ -5,9 +5,9 @@ import type { JudgeProvider } from "../../src/judge/providers.js";
 function mockProvider(name: string, response: string | Error): JudgeProvider {
   return {
     name,
-    async call(): Promise<string> {
+    async call() {
       if (response instanceof Error) throw response;
-      return response;
+      return { text: response };
     },
   };
 }
@@ -43,7 +43,7 @@ test.describe("JudgeParseError handling", () => {
         name: "fallback",
         async call() {
           fallbackCalled.value = true;
-          return '{"score": 0.9, "reasoning": "ok"}';
+          return { text: '{"score": 0.9, "reasoning": "ok"}' };
         },
       },
     ]);

@@ -1,5 +1,9 @@
 import type { JudgeEvaluator } from "../../src/judge/client.js";
-import type { FailureReason, JudgeResponse } from "../../src/types.js";
+import type {
+  FailureReason,
+  JudgeResponse,
+  TokenUsage,
+} from "../../src/types.js";
 
 interface MockJudgeOptions {
   score: number | null;
@@ -9,6 +13,8 @@ interface MockJudgeOptions {
   fallbackUsed?: boolean;
   failureReason?: FailureReason;
   backoffMs?: number;
+  usage?: TokenUsage;
+  costUsd?: number;
 }
 
 export function createMockJudge(options: MockJudgeOptions): JudgeEvaluator {
@@ -20,6 +26,8 @@ export function createMockJudge(options: MockJudgeOptions): JudgeEvaluator {
       fallbackUsed: boolean;
       failureReason: FailureReason;
       backoffMs: number;
+      usage?: TokenUsage;
+      costUsd?: number;
     }> {
       return {
         response: {
@@ -31,6 +39,8 @@ export function createMockJudge(options: MockJudgeOptions): JudgeEvaluator {
         fallbackUsed: options.fallbackUsed ?? false,
         failureReason: options.failureReason ?? null,
         backoffMs: options.backoffMs ?? 0,
+        usage: options.usage,
+        costUsd: options.costUsd,
       };
     },
   };
@@ -69,6 +79,8 @@ export function capturePromptJudge(
         fallbackUsed: options.fallbackUsed ?? false,
         failureReason: options.failureReason ?? null,
         backoffMs: options.backoffMs ?? 0,
+        usage: options.usage,
+        costUsd: options.costUsd,
       };
     },
   };

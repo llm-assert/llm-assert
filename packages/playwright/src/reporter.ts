@@ -80,6 +80,27 @@ function parseEvaluationAttachment(
   )
     return null;
 
+  // Validate optional token/cost fields (must be positive integers, matching DB CHECK > 0)
+  if (
+    d.judgeInputTokens !== undefined &&
+    (typeof d.judgeInputTokens !== "number" ||
+      !Number.isInteger(d.judgeInputTokens) ||
+      d.judgeInputTokens <= 0)
+  )
+    return null;
+  if (
+    d.judgeOutputTokens !== undefined &&
+    (typeof d.judgeOutputTokens !== "number" ||
+      !Number.isInteger(d.judgeOutputTokens) ||
+      d.judgeOutputTokens <= 0)
+  )
+    return null;
+  if (
+    d.judgeCostUsd !== undefined &&
+    (typeof d.judgeCostUsd !== "number" || d.judgeCostUsd < 0)
+  )
+    return null;
+
   return {
     assertionType: d.assertionType as AssertionType,
     inputText: typeof d.inputText === "string" ? d.inputText : "",
@@ -97,6 +118,10 @@ function parseEvaluationAttachment(
     reasoning: d.reasoning as string,
     judgeModel: d.judgeModel as string,
     judgeLatencyMs: d.judgeLatencyMs as number,
+    judgeInputTokens:
+      typeof d.judgeInputTokens === "number" ? d.judgeInputTokens : undefined,
+    judgeOutputTokens:
+      typeof d.judgeOutputTokens === "number" ? d.judgeOutputTokens : undefined,
     judgeCostUsd:
       typeof d.judgeCostUsd === "number" ? d.judgeCostUsd : undefined,
     fallbackUsed: typeof d.fallbackUsed === "boolean" ? d.fallbackUsed : false,
@@ -226,6 +251,8 @@ class LLMAssertReporter implements Reporter {
         reasoning: e.reasoning,
         judge_model: e.judgeModel,
         judge_latency_ms: e.judgeLatencyMs,
+        judge_input_tokens: e.judgeInputTokens,
+        judge_output_tokens: e.judgeOutputTokens,
         judge_cost_usd: e.judgeCostUsd,
         fallback_used: e.fallbackUsed,
         threshold: e.threshold,
@@ -237,6 +264,20 @@ class LLMAssertReporter implements Reporter {
         failure_reason: e.failureReason,
       })),
     };
+
+    // Log run cost summary
+    const totalCost = this.evaluations.reduce(
+      (sum, e) => sum + (e.judgeCostUsd ?? 0),
+      0,
+    );
+    const evalsWithCost = this.evaluations.filter(
+      (e) => e.judgeCostUsd !== undefined,
+    ).length;
+    if (evalsWithCost > 0) {
+      console.error(
+        `[LLMAssert] Judge cost: $${totalCost.toFixed(6)} across ${evalsWithCost}/${this.evaluations.length} evaluations`,
+      );
+    }
 
     // Send in batches
     const batchSize = this.config.batchSize!;

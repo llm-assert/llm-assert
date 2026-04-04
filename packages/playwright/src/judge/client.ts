@@ -1,4 +1,9 @@
-import type { FailureReason, JudgeConfig, JudgeResponse } from "../types.js";
+import type {
+  FailureReason,
+  JudgeConfig,
+  JudgeResponse,
+  TokenUsage,
+} from "../types.js";
 import { log } from "../logger.js";
 import {
   type JudgeProvider,
@@ -7,6 +12,7 @@ import {
   OpenAIProvider,
   createAnthropicProvider,
 } from "./providers.js";
+import { calculateCostUsd } from "./pricing.js";
 
 /** Abstraction for time — enables deterministic testing of rate limiting */
 export interface Clock {
@@ -39,6 +45,8 @@ export interface JudgeEvaluator {
     fallbackUsed: boolean;
     failureReason: FailureReason;
     backoffMs: number;
+    usage?: TokenUsage;
+    costUsd?: number;
   }>;
 }
 
@@ -50,6 +58,7 @@ export const DEFAULT_CONFIG: Required<
     | "maxInputChars"
     | "inputHandling"
     | "rateLimit"
+    | "pricing"
   >
 > & { maxInputChars: number; inputHandling: "reject" | "truncate" } = {
   primaryModel: "gpt-5.4-mini",
@@ -73,7 +82,7 @@ const BACKOFF_BASE_MS = 200;
  * GPT-5.4-mini → Claude Haiku → inconclusive
  */
 export class JudgeClient implements JudgeEvaluator {
-  private config: typeof DEFAULT_CONFIG;
+  private config: typeof DEFAULT_CONFIG & Pick<JudgeConfig, "pricing">;
   private providers: JudgeProvider[] = [];
   private anthropicInitPromise: Promise<void> | null = null;
   private clock: Clock;
@@ -165,6 +174,8 @@ export class JudgeClient implements JudgeEvaluator {
     fallbackUsed: boolean;
     failureReason: FailureReason;
     backoffMs: number;
+    usage?: TokenUsage;
+    costUsd?: number;
   }> {
     // Ensure Anthropic provider is initialized before evaluating
     if (this.anthropicInitPromise) {
@@ -180,21 +191,33 @@ export class JudgeClient implements JudgeEvaluator {
 
     for (let i = 0; i < this.providers.length; i++) {
       const provider = this.providers[i];
+      let lastRaw:
+        | { text: string; backoffMs: number; usage?: TokenUsage }
+        | undefined;
       try {
         const raw = await this.callWithRetry(
           provider,
           systemPrompt,
           userPrompt,
         );
+        lastRaw = raw;
         totalBackoffMs += raw.backoffMs;
         const response = this.parseResponse(raw.text);
+        const model =
+          i === 0 ? this.config.primaryModel : this.config.fallbackModel;
+        const costUsd = raw.usage
+          ? (calculateCostUsd(model, raw.usage, this.config.pricing) ??
+            undefined)
+          : undefined;
         return {
           response,
-          model: i === 0 ? this.config.primaryModel : this.config.fallbackModel,
+          model,
           latencyMs: this.clock.now() - start,
           fallbackUsed: i > 0,
           failureReason: null,
           backoffMs: totalBackoffMs,
+          usage: raw.usage,
+          costUsd,
         };
       } catch (error) {
         if (error instanceof JudgeParseError) {
@@ -203,17 +226,27 @@ export class JudgeClient implements JudgeEvaluator {
             provider: provider.name,
             error: error.message,
           });
+          const parseModel =
+            i === 0 ? this.config.primaryModel : this.config.fallbackModel;
+          const parseCost = lastRaw?.usage
+            ? (calculateCostUsd(
+                parseModel,
+                lastRaw.usage,
+                this.config.pricing,
+              ) ?? undefined)
+            : undefined;
           return {
             response: {
               score: null,
               reasoning: `Judge response parsing failed: ${error.message}`,
             },
-            model:
-              i === 0 ? this.config.primaryModel : this.config.fallbackModel,
+            model: parseModel,
             latencyMs: this.clock.now() - start,
             fallbackUsed: i > 0,
             failureReason: "parse_error",
             backoffMs: totalBackoffMs,
+            usage: lastRaw?.usage,
+            costUsd: parseCost,
           };
         }
 
@@ -259,13 +292,17 @@ export class JudgeClient implements JudgeEvaluator {
     provider: JudgeProvider,
     systemPrompt: string,
     userPrompt: string,
-  ): Promise<{ text: string; backoffMs: number }> {
+  ): Promise<{ text: string; backoffMs: number; usage?: TokenUsage }> {
     let totalBackoffMs = 0;
 
     for (let attempt = 0; attempt <= MAX_429_RETRIES; attempt++) {
       try {
-        const text = await provider.call(systemPrompt, userPrompt);
-        return { text, backoffMs: totalBackoffMs };
+        const result = await provider.call(systemPrompt, userPrompt);
+        return {
+          text: result.text,
+          backoffMs: totalBackoffMs,
+          usage: result.usage,
+        };
       } catch (error) {
         if (error instanceof RateLimitError && attempt < MAX_429_RETRIES) {
           const delay =

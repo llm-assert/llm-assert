@@ -163,4 +163,75 @@ test.describe("Reporter attachment parsing", () => {
     expect(evals[0].rateLimited).toBe(true);
     expect(evals[0].judgeBackoffMs).toBe(450);
   });
+
+  test("accepts token and cost fields on attachment", () => {
+    const reporter = createReporter();
+    reporter.begin();
+    reporter.onTestEnd(
+      makeTestCase("test"),
+      makeTestResultWithEval({
+        ...validEvalData,
+        judgeInputTokens: 500,
+        judgeOutputTokens: 80,
+        judgeCostUsd: 0.000123,
+      }),
+    );
+    const evals = reporter.getEvaluations();
+    expect(evals).toHaveLength(1);
+    expect(evals[0].judgeInputTokens).toBe(500);
+    expect(evals[0].judgeOutputTokens).toBe(80);
+    expect(evals[0].judgeCostUsd).toBe(0.000123);
+  });
+
+  test("omits token fields when not present", () => {
+    const reporter = createReporter();
+    reporter.begin();
+    reporter.onTestEnd(
+      makeTestCase("test"),
+      makeTestResultWithEval(validEvalData),
+    );
+    const evals = reporter.getEvaluations();
+    expect(evals).toHaveLength(1);
+    expect(evals[0].judgeInputTokens).toBeUndefined();
+    expect(evals[0].judgeOutputTokens).toBeUndefined();
+  });
+
+  test("rejects negative token count", () => {
+    const reporter = createReporter({ onError: "silent" });
+    reporter.begin();
+    reporter.onTestEnd(
+      makeTestCase("test"),
+      makeTestResultWithEval({
+        ...validEvalData,
+        judgeInputTokens: -1,
+      }),
+    );
+    expect(reporter.getEvaluations()).toHaveLength(0);
+  });
+
+  test("rejects zero token count", () => {
+    const reporter = createReporter({ onError: "silent" });
+    reporter.begin();
+    reporter.onTestEnd(
+      makeTestCase("test"),
+      makeTestResultWithEval({
+        ...validEvalData,
+        judgeInputTokens: 0,
+      }),
+    );
+    expect(reporter.getEvaluations()).toHaveLength(0);
+  });
+
+  test("rejects non-integer token count", () => {
+    const reporter = createReporter({ onError: "silent" });
+    reporter.begin();
+    reporter.onTestEnd(
+      makeTestCase("test"),
+      makeTestResultWithEval({
+        ...validEvalData,
+        judgeOutputTokens: 10.5,
+      }),
+    );
+    expect(reporter.getEvaluations()).toHaveLength(0);
+  });
 });

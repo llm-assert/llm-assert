@@ -70,11 +70,19 @@ export async function evaluateGroundedness(
   }
 
   const judge = client ?? new JudgeClient(config);
-  const { response, model, latencyMs, fallbackUsed, failureReason, backoffMs } =
-    await judge.evaluate(
-      GROUNDEDNESS_SYSTEM,
-      GROUNDEDNESS_USER(processedContext, processedInput),
-    );
+  const {
+    response,
+    model,
+    latencyMs,
+    fallbackUsed,
+    failureReason,
+    backoffMs,
+    usage,
+    costUsd,
+  } = await judge.evaluate(
+    GROUNDEDNESS_SYSTEM,
+    GROUNDEDNESS_USER(processedContext, processedInput),
+  );
 
   if (response.score === null) {
     return {
@@ -89,6 +97,9 @@ export async function evaluateGroundedness(
       rateLimited: backoffMs > 0 || undefined,
       judgeBackoffMs: backoffMs > 0 ? backoffMs : undefined,
       failureReason,
+      judgeInputTokens: usage?.inputTokens,
+      judgeOutputTokens: usage?.outputTokens,
+      judgeCostUsd: costUsd,
     };
   }
 
@@ -104,5 +115,8 @@ export async function evaluateGroundedness(
     rateLimited: backoffMs > 0 || undefined,
     judgeBackoffMs: backoffMs > 0 ? backoffMs : undefined,
     failureReason,
+    judgeInputTokens: usage?.inputTokens,
+    judgeOutputTokens: usage?.outputTokens,
+    judgeCostUsd: costUsd,
   };
 }
