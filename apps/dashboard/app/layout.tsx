@@ -14,8 +14,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LLMAssert",
-  description: "Analytics dashboard for LLM assertion testing with Playwright",
+  title: {
+    default: "LLMAssert",
+    template: "%s | LLMAssert",
+  },
+  description: "LLM-powered assertions for Playwright tests",
 };
 
 export default function RootLayout({
@@ -28,6 +31,12 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
       >
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:rounded focus:bg-zinc-900 focus:px-4 focus:py-2 focus:text-white focus:outline-2 focus:outline-zinc-400"
+        >
+          Skip to content
+        </a>
         <TooltipProvider>{children}</TooltipProvider>
       </body>
     </html>

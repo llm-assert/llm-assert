@@ -63,7 +63,7 @@ export default async function EvaluationDetailPage({ params }: PageProps) {
     <>
       <DashboardHeader
         breadcrumbs={[
-          { label: "Projects", href: "/" },
+          { label: "Projects", href: "/dashboard" },
           { label: project.name, href: `/projects/${project.slug}` },
           { label: "Runs", href: `/projects/${project.slug}/runs` },
           {

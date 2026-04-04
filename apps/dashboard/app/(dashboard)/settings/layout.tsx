@@ -8,7 +8,10 @@ export default function SettingsLayout({
   return (
     <>
       <DashboardHeader
-        breadcrumbs={[{ label: "Projects", href: "/" }, { label: "Settings" }]}
+        breadcrumbs={[
+          { label: "Projects", href: "/dashboard" },
+          { label: "Settings" },
+        ]}
       />
       <div className="flex-1 p-4">{children}</div>
     </>

@@ -6,7 +6,7 @@ export default function Loading() {
     <>
       <DashboardHeader
         breadcrumbs={[
-          { label: "Projects", href: "/" },
+          { label: "Projects", href: "/dashboard" },
           { label: "Loading..." },
           { label: "Runs" },
         ]}

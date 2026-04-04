@@ -58,7 +58,7 @@ setup("create test user and authenticate", async ({ page }) => {
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
 
   // Wait for redirect to dashboard root
-  await page.waitForURL("/");
+  await page.waitForURL("/dashboard");
   await expect(page.locator("body")).not.toContainText("Sign in to LLMAssert");
 
   // Save auth state for reuse by authenticated test projects
