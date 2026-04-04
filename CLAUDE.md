@@ -38,6 +38,7 @@ supabase/migrations/     # Postgres DDL with RLS
 - Use `proxy.ts` not `middleware.ts` for auth session refresh
 - Supabase: use `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (not anon key) with `@supabase/ssr`
 - Stripe: use `request.text()` for raw webhook body, verify with `stripe.webhooks.constructEvent()`
+- Use `data-testid="<component>-<element>"` on dashboard components for e2e test selectors (e.g., `stats-cards`, `run-row-{id}`, `eval-metadata-panel`)
 
 ## DO
 

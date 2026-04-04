@@ -15,7 +15,7 @@ export function EvaluationMetadataPanel({
   pagePath: string;
 }) {
   return (
-    <Card>
+    <Card data-testid="eval-metadata-panel">
       <CardContent className="space-y-5 p-5">
         {/* Result + Score */}
         <div className="flex flex-col items-center gap-2">

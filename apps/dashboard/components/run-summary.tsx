@@ -29,7 +29,7 @@ export function RunSummary({
   avgScore: number | null;
 }) {
   return (
-    <Card>
+    <Card data-testid="run-summary">
       <CardContent className="flex flex-wrap items-center gap-x-6 gap-y-3 p-4">
         <div className="flex items-center gap-1.5 text-sm">
           <GitBranch className="size-3.5 text-muted-foreground" />

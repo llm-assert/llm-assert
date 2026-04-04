@@ -103,7 +103,11 @@ export async function RunsTable({
           </TableHeader>
           <TableBody>
             {runs.map((run) => (
-              <TableRow key={run.id} className="group relative cursor-pointer">
+              <TableRow
+                key={run.id}
+                data-testid={`run-row-${run.id}`}
+                className="group relative cursor-pointer"
+              >
                 <TableCell className="whitespace-nowrap text-sm">
                   <Link
                     href={`/projects/${projectSlug}/runs/${run.id}`}

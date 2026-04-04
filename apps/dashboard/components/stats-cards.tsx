@@ -21,7 +21,10 @@ export async function StatsCards({ projectId }: { projectId: string }) {
 
   if (!stats || stats.total_evaluations === 0) {
     return (
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div
+        data-testid="stats-cards"
+        className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+      >
         <StatCard
           title="Total Evaluations"
           value="0"
@@ -40,7 +43,10 @@ export async function StatsCards({ projectId }: { projectId: string }) {
     stats.avg_score != null ? Number(stats.avg_score).toFixed(2) : "—";
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div
+      data-testid="stats-cards"
+      className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+    >
       <StatCard
         title="Total Evaluations"
         value={stats.total_evaluations.toLocaleString()}

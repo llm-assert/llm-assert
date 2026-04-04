@@ -88,7 +88,7 @@ export async function EvaluationsTable({
   return (
     <div>
       <div className="overflow-x-auto rounded-lg border">
-        <Table>
+        <Table data-testid="evals-table">
           <TableCaption className="sr-only">
             Evaluations for this test run, page {page} of {totalPages}
           </TableCaption>

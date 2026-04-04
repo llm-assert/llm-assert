@@ -8,7 +8,7 @@ export function EvaluationContentPanel({
   evaluation: Evaluation;
 }) {
   return (
-    <div className="space-y-4">
+    <div data-testid="eval-content-panel" className="space-y-4">
       <ContentSection label="Input" text={evaluation.input_text} />
 
       {evaluation.context_text && (
