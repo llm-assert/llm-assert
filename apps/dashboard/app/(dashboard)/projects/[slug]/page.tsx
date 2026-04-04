@@ -1,10 +1,18 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { getProject } from "@/lib/queries/get-project";
+import { getProjectTrends } from "@/lib/queries/get-project-trends";
+import { getAssertionBreakdown } from "@/lib/queries/get-assertion-breakdown";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { StatsCards } from "@/components/stats-cards";
+import {
+  OverviewSparklineCard,
+  OverviewBreakdownCard,
+} from "@/components/overview-charts";
+import { ChartErrorBoundary } from "@/components/chart-error-boundary";
 import { RecentRunsTable } from "@/components/recent-runs-table";
 import { StatCardSkeleton } from "@/components/stat-card-skeleton";
+import { ChartSkeleton } from "@/components/chart-skeleton";
 import { RecentRunsTableSkeleton } from "@/components/recent-runs-table-skeleton";
 
 export default async function ProjectOverviewPage({
@@ -19,6 +27,10 @@ export default async function ProjectOverviewPage({
   if (!project) {
     notFound();
   }
+
+  // Start chart data fetches without awaiting — streams to client via use() API
+  const trendsPromise = getProjectTrends(project.id, 7);
+  const breakdownPromise = getAssertionBreakdown(project.id);
 
   return (
     <>
@@ -50,6 +62,20 @@ export default async function ProjectOverviewPage({
         >
           <StatsCards projectId={project.id} />
         </Suspense>
+
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <ChartErrorBoundary title="Evaluation Volume — Last 7 Days">
+            <Suspense fallback={<ChartSkeleton />}>
+              <OverviewSparklineCard dataPromise={trendsPromise} />
+            </Suspense>
+          </ChartErrorBoundary>
+
+          <ChartErrorBoundary title="Assertion Type Breakdown">
+            <Suspense fallback={<ChartSkeleton />}>
+              <OverviewBreakdownCard dataPromise={breakdownPromise} />
+            </Suspense>
+          </ChartErrorBoundary>
+        </div>
 
         <Suspense fallback={<RecentRunsTableSkeleton />}>
           <RecentRunsTable projectId={project.id} projectSlug={project.slug} />
