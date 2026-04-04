@@ -32,36 +32,16 @@ export function OverviewSparkline({ data }: { data: TrendBucket[] }) {
             margin={{ top: 2, right: 0, left: 0, bottom: 2 }}
           >
             <defs>
-              <linearGradient
-                id={`${id}-passed`}
-                x1="0"
-                y1="0"
-                x2="0"
-                y2="1"
-              >
-                <stop
-                  offset="5%"
-                  stopColor={colors.chart2}
-                  stopOpacity={0.6}
-                />
+              <linearGradient id={`${id}-passed`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={colors.chart2} stopOpacity={0.6} />
                 <stop
                   offset="95%"
                   stopColor={colors.chart2}
                   stopOpacity={0.05}
                 />
               </linearGradient>
-              <linearGradient
-                id={`${id}-failed`}
-                x1="0"
-                y1="0"
-                x2="0"
-                y2="1"
-              >
-                <stop
-                  offset="5%"
-                  stopColor={colors.chart5}
-                  stopOpacity={0.6}
-                />
+              <linearGradient id={`${id}-failed`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={colors.chart5} stopOpacity={0.6} />
                 <stop
                   offset="95%"
                   stopColor={colors.chart5}
@@ -75,11 +55,7 @@ export function OverviewSparkline({ data }: { data: TrendBucket[] }) {
                 x2="0"
                 y2="1"
               >
-                <stop
-                  offset="5%"
-                  stopColor={colors.chart3}
-                  stopOpacity={0.6}
-                />
+                <stop offset="5%" stopColor={colors.chart3} stopOpacity={0.6} />
                 <stop
                   offset="95%"
                   stopColor={colors.chart3}

@@ -48,7 +48,8 @@ export async function proxy(request: NextRequest) {
   const isPublicPath =
     pathname.startsWith("/sign-in") ||
     pathname.startsWith("/sign-up") ||
-    pathname.startsWith("/auth/callback");
+    pathname.startsWith("/auth/callback") ||
+    pathname.startsWith("/auth/error");
   const isApiPath = pathname.startsWith("/api/");
 
   // Redirect unauthenticated users to sign-in (defense in depth)
@@ -65,7 +66,12 @@ export async function proxy(request: NextRequest) {
   }
 
   // Redirect authenticated users away from auth pages
-  if (user && isPublicPath && !pathname.startsWith("/auth/callback")) {
+  if (
+    user &&
+    isPublicPath &&
+    !pathname.startsWith("/auth/callback") &&
+    !pathname.startsWith("/auth/error")
+  ) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/";
     redirectUrl.search = "";
