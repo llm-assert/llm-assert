@@ -13,6 +13,31 @@ export async function signOutAction() {
   redirect("/sign-in");
 }
 
+export async function dismissOnboardingAction() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return;
+  }
+
+  const { error } = await supabase.auth.updateUser({
+    data: { onboarding_dismissed: true },
+  });
+
+  if (error) {
+    console.error(
+      "[onboarding/dismiss] system_error message=%s",
+      error.message,
+    );
+    return;
+  }
+
+  revalidatePath("/", "page");
+}
+
 export type CreateProjectState = {
   error?:
     | "unauthorized"

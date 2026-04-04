@@ -31,7 +31,7 @@ export default defineConfig({
         ...devices["Desktop Chrome"],
         storageState: "e2e/.auth/user.json",
       },
-      testMatch: /auth\.spec\.ts/,
+      testMatch: /(?:auth|onboarding)\.spec\.ts/,
       dependencies: ["setup"],
     },
     {
