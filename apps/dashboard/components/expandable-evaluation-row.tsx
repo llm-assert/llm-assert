@@ -24,7 +24,7 @@ export function ExpandableEvaluationRow({
 
   return (
     <>
-      <TableRow className="group">
+      <TableRow className="group" data-testid={`eval-row-${evaluation.id}`}>
         <TableCell className="text-sm capitalize">
           {evaluation.assertion_type}
         </TableCell>

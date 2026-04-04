@@ -24,6 +24,8 @@ playwright-report/
 
 # Playwright auth state (contains live session JWTs — never commit)
 **/e2e/.auth/
+e2e-smoke/.auth/
+e2e-smoke/.smoke-state.json
 
 # Test coverage
 coverage/

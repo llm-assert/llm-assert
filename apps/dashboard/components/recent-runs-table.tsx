@@ -56,7 +56,7 @@ export async function RecentRunsTable({
     <div className="space-y-3">
       <h2 className="text-lg font-semibold">Recent Runs</h2>
       <div className="overflow-x-auto rounded-lg border">
-        <Table>
+        <Table data-testid="recent-runs-table">
           <TableHeader>
             <TableRow>
               <TableHead>Started</TableHead>
@@ -70,7 +70,7 @@ export async function RecentRunsTable({
           </TableHeader>
           <TableBody>
             {runs.map((run) => (
-              <TableRow key={run.id}>
+              <TableRow key={run.id} data-testid={`run-row-${run.id}`}>
                 <TableCell className="whitespace-nowrap text-sm">
                   {formatRelativeTime(run.started_at)}
                 </TableCell>

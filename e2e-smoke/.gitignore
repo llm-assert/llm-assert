@@ -1,0 +1,4 @@
+.smoke-state.json
+.auth/
+test-results/
+playwright-report/

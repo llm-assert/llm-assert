@@ -77,18 +77,14 @@ export async function EvaluationsTable({
     );
   }
 
-  function buildHref(p: number) {
-    const params = new URLSearchParams();
-    if (filters.type) params.set("type", filters.type);
-    if (filters.result) params.set("result", filters.result);
-    params.set("page", String(p));
-    return `?${params.toString()}`;
-  }
+  const baseParams: Record<string, string> = {};
+  if (filters.type) baseParams.type = filters.type;
+  if (filters.result) baseParams.result = filters.result;
 
   return (
     <div>
       <div className="overflow-x-auto rounded-lg border">
-        <Table>
+        <Table data-testid="evals-table">
           <TableCaption className="sr-only">
             Evaluations for this test run, page {page} of {totalPages}
           </TableCaption>
@@ -121,7 +117,7 @@ export async function EvaluationsTable({
         totalCount={totalCount}
         perPage={perPage}
         noun="evaluations"
-        buildHref={buildHref}
+        baseParams={baseParams}
       />
     </div>
   );
