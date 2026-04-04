@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Check, Copy, Loader2, Plus } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { KeyReveal } from "@/components/key-reveal";
 import {
   createProjectAction,
   type CreateProjectState,
@@ -39,7 +40,6 @@ export function CreateProjectDialog() {
   const [nameValue, setNameValue] = useState("");
   const [slugValue, setSlugValue] = useState("");
   const [descValue, setDescValue] = useState("");
-  const [copied, setCopied] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
 
   const isKeyReveal = state.success && state.rawKey;
@@ -76,7 +76,6 @@ export function CreateProjectDialog() {
       setSlugValue("");
       setDescValue("");
       setSlugManuallyEdited(false);
-      setCopied(false);
     }
   }, []);
 
@@ -87,14 +86,6 @@ export function CreateProjectDialog() {
     }
   }, [open, isKeyReveal]);
 
-  const handleCopy = useCallback(async () => {
-    if (state.rawKey) {
-      await navigator.clipboard.writeText(state.rawKey);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  }, [state.rawKey]);
-
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
@@ -103,71 +94,18 @@ export function CreateProjectDialog() {
           New Project
         </Button>
       </DialogTrigger>
-      <DialogContent key={formKey} showCloseButton={!isKeyReveal}>
+      <DialogContent
+        key={formKey}
+        showCloseButton={!isKeyReveal}
+        onInteractOutside={isKeyReveal ? (e) => e.preventDefault() : undefined}
+        onEscapeKeyDown={isKeyReveal ? (e) => e.preventDefault() : undefined}
+      >
         {isKeyReveal ? (
-          <>
-            <DialogHeader>
-              <DialogTitle>Project Created</DialogTitle>
-              <DialogDescription>
-                Your API key is shown below. Copy it now — you won't see it
-                again.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>API Key</Label>
-                <div className="flex gap-2">
-                  <Input
-                    readOnly
-                    value={state.rawKey}
-                    className="font-mono text-xs"
-                  />
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={handleCopy}
-                    aria-label="Copy API key"
-                  >
-                    {copied ? (
-                      <Check className="size-4" />
-                    ) : (
-                      <Copy className="size-4" />
-                    )}
-                  </Button>
-                </div>
-                <div aria-live="polite" className="sr-only">
-                  {copied ? "Copied to clipboard" : ""}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Project Slug</Label>
-                <p className="font-mono text-sm text-muted-foreground">
-                  {state.projectSlug}
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Reporter Config</Label>
-                <pre className="rounded-md border bg-muted p-3 text-xs overflow-x-auto">
-                  <code>{`// playwright.config.ts
-reporter: [['@llmassert/playwright/reporter', {
-  projectSlug: '${state.projectSlug}',
-  apiKey: '${state.rawKey}',
-}]]`}</code>
-                </pre>
-              </div>
-
-              <p className="text-sm text-amber-500">
-                Copy this key now. You won't see it again.
-              </p>
-            </div>
-
-            <DialogFooter>
-              <Button onClick={() => handleOpenChange(false)}>Done</Button>
-            </DialogFooter>
-          </>
+          <KeyReveal
+            rawKey={state.rawKey!}
+            projectSlug={state.projectSlug!}
+            onDone={() => handleOpenChange(false)}
+          />
         ) : (
           <form action={formAction}>
             <DialogHeader>
