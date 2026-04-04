@@ -92,6 +92,13 @@
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .recharts-wrapper * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
 :root {
   --sidebar: hsl(0 0% 98%);
   --sidebar-foreground: hsl(240 5.3% 26.1%);

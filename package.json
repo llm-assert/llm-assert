@@ -16,6 +16,11 @@
     "release": "turbo run build --filter=@llmassert/playwright && changeset publish",
     "prepare": "husky"
   },
+  "pnpm": {
+    "overrides": {
+      "react-is": "^19.0.0"
+    }
+  },
   "devDependencies": {
     "@changesets/changelog-github": "^0.6.0",
     "@changesets/cli": "^2.30.0",
