@@ -35,8 +35,10 @@ import {
 import { KeyReveal } from "@/components/key-reveal";
 import {
   createApiKeyAction,
-  initialCreateState,
+  type CreateApiKeyState,
 } from "@/app/(dashboard)/settings/keys/actions";
+
+const initialCreateState: CreateApiKeyState = {};
 
 interface Project {
   id: string;

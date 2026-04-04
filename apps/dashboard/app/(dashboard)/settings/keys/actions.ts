@@ -30,10 +30,6 @@ export type CreateApiKeyState = {
   keyPrefix?: string;
 };
 
-const initialCreateState: CreateApiKeyState = {};
-
-export { initialCreateState };
-
 export async function createApiKeyAction(
   _prevState: CreateApiKeyState,
   formData: FormData,
