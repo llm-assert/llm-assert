@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.3
+
+### Patch Changes
+
+- [#55](https://github.com/llm-assert/llm-assert/pull/55) [`dc3c3e9`](https://github.com/llm-assert/llm-assert/commit/dc3c3e94b77abc47c404004a1a1dfdf6f4c35f07) Thanks [@Cporter97](https://github.com/Cporter97)! - Add package README.md for npm landing page with install guide, quick start, all 5 matcher examples, judge configuration, dashboard reporter configuration, and CI metadata documentation.
+
 ## 0.2.2
 
 ### Patch Changes
