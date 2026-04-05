@@ -33,6 +33,42 @@ function requiredInProduction(name: string): string | undefined {
   return value;
 }
 
+/**
+ * Validate that the Stripe secret key mode matches the deployment environment.
+ * Handles both standard keys (sk_*) and restricted keys (rk_*).
+ * - Production MUST use live keys (throw on test key)
+ * - Non-production SHOULD use test keys (warn on live key)
+ */
+function validateStripeKeyMode(key: string | undefined): void {
+  if (!key) return;
+  const env = process.env.VERCEL_ENV ?? "development";
+  const isLiveKey = key.startsWith("sk_live_") || key.startsWith("rk_live_");
+  const isTestKey = key.startsWith("sk_test_") || key.startsWith("rk_test_");
+
+  if (!isLiveKey && !isTestKey) {
+    console.warn(
+      `[env-validation] STRIPE_SECRET_KEY has unrecognised prefix "${key.slice(0, 7)}...". ` +
+        `Expected sk_live_, sk_test_, rk_live_, or rk_test_.`,
+    );
+    return;
+  }
+
+  if (env === "production" && isTestKey) {
+    throw new Error(
+      `STRIPE_SECRET_KEY is a test-mode key but VERCEL_ENV is "production". ` +
+        `Live mode requires a key starting with "sk_live_" or "rk_live_". ` +
+        `Update STRIPE_SECRET_KEY in the Vercel dashboard (production target).`,
+    );
+  }
+
+  if (env !== "production" && isLiveKey) {
+    console.warn(
+      `[env-validation] STRIPE_SECRET_KEY is a live-mode key in ${env} environment. ` +
+        `This is unusual — live keys should only be used in production.`,
+    );
+  }
+}
+
 // Lazy proxy: each property is validated on first access and cached.
 const cache = new Map<string, string | undefined>();
 
@@ -75,7 +111,11 @@ export const serverEnv = {
     return key;
   },
   get STRIPE_SECRET_KEY(): string | undefined {
-    return requiredInProduction("STRIPE_SECRET_KEY");
+    if (cache.has("STRIPE_SECRET_KEY")) return cache.get("STRIPE_SECRET_KEY");
+    const key = requiredInProduction("STRIPE_SECRET_KEY");
+    validateStripeKeyMode(key);
+    cache.set("STRIPE_SECRET_KEY", key);
+    return key;
   },
   get STRIPE_WEBHOOK_SECRET(): string | undefined {
     return requiredInProduction("STRIPE_WEBHOOK_SECRET");

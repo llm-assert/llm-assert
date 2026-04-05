@@ -28,7 +28,13 @@ export async function POST(request: Request): Promise<Response> {
   let event: Stripe.Event;
   try {
     event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
-  } catch {
+  } catch (err) {
+    logWebhook(
+      "signature_verification_failed",
+      "unknown",
+      "constructEvent",
+      `${err instanceof Error ? err.message : "Unknown error"} (secret fingerprint: ...${webhookSecret.slice(-8)})`,
+    );
     return Response.json({ error: "Invalid signature" }, { status: 400 });
   }
 
@@ -70,12 +76,15 @@ export async function POST(request: Request): Promise<Response> {
         break;
     }
   } catch (error) {
-    logWebhook(
-      "processing_error",
-      event.id,
-      event.type,
-      error instanceof Error ? error.message : String(error),
-    );
+    // Avoid double-logging errors already logged by inner handlers (e.g. resolvePlanFromSubscription)
+    if (!(error instanceof Error && loggedErrors.has(error))) {
+      logWebhook(
+        "processing_error",
+        event.id,
+        event.type,
+        error instanceof Error ? error.message : String(error),
+      );
+    }
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 
@@ -116,6 +125,15 @@ async function handleCheckoutCompleted(
   // Resolve plan from the subscription's price
   const plan = await resolvePlanFromSubscription(subscriptionId);
 
+  if (!plan && subscriptionId) {
+    logWebhook(
+      "unknown_price_id",
+      session.id ?? "unknown",
+      "checkout.session.completed",
+      `planFromPriceId returned null for subscription ${subscriptionId} — defaulting to starter`,
+    );
+  }
+
   const { error } = await db.from("subscriptions").upsert(
     {
       user_id: userId,
@@ -145,6 +163,15 @@ async function handleSubscriptionUpdated(
   const firstItem = subscription.items.data[0];
   const priceId = firstItem?.price.id;
   const plan = priceId ? planFromPriceId(priceId) : null;
+
+  if (!plan && priceId) {
+    logWebhook(
+      "unknown_price_id",
+      typeof subscription.id === "string" ? subscription.id : "unknown",
+      "customer.subscription.updated",
+      `planFromPriceId returned null for price ${priceId} — defaulting to starter`,
+    );
+  }
 
   const { error } = await db
     .from("subscriptions")
@@ -222,6 +249,9 @@ async function handleInvoicePaid(
 // Helpers
 // ---------------------------------------------------------------------------
 
+/** Track errors already logged by inner handlers to avoid double-logging in outer catch */
+const loggedErrors = new WeakSet<Error>();
+
 function logWebhook(
   event: string,
   stripeId: string,
@@ -250,7 +280,14 @@ async function resolvePlanFromSubscription(
     const sub = await stripe.subscriptions.retrieve(subscriptionId);
     const priceId = sub.items.data[0]?.price.id;
     return priceId ? planFromPriceId(priceId) : null;
-  } catch {
-    return null;
+  } catch (err) {
+    logWebhook(
+      "resolve_plan_error",
+      subscriptionId,
+      "subscription.retrieve",
+      err instanceof Error ? err.message : "Unknown error",
+    );
+    if (err instanceof Error) loggedErrors.add(err);
+    throw err;
   }
 }
