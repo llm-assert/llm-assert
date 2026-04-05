@@ -14,11 +14,22 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
+  ),
   title: {
     default: "LLMAssert",
     template: "%s | LLMAssert",
   },
   description: "LLM-powered assertions for Playwright tests",
+  openGraph: {
+    siteName: "LLMAssert",
+    type: "website",
+    url: "/",
+  },
+  twitter: {
+    card: "summary_large_image",
+  },
 };
 
 export default function RootLayout({

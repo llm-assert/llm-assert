@@ -8,6 +8,17 @@ import { NextResponse, type NextRequest } from "next/server";
 import { publicEnv } from "@/lib/env";
 
 export async function proxy(request: NextRequest) {
+  // Skip auth for static SEO routes (high-frequency crawler endpoints)
+  const { pathname } = request.nextUrl;
+  if (
+    pathname === "/robots.txt" ||
+    pathname === "/sitemap.xml" ||
+    pathname === "/opengraph-image" ||
+    pathname === "/twitter-image"
+  ) {
+    return NextResponse.next({ request });
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   });
@@ -41,8 +52,6 @@ export async function proxy(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  const { pathname } = request.nextUrl;
 
   // Public paths that don't require authentication
   const isPublicPath =

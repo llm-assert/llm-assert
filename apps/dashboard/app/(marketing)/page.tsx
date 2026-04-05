@@ -9,12 +9,6 @@ export const metadata: Metadata = {
   title: "LLMAssert — LLM-Powered Assertions for Playwright",
   description:
     "Ship AI-tested software with confidence. Groundedness, PII detection, tone matching, format compliance, and semantic matching — powered by LLM judges, built on Playwright.",
-  openGraph: {
-    title: "LLMAssert — LLM-Powered Assertions for Playwright",
-    description:
-      "Playwright matchers for LLM outputs. Test your AI with assertions you already know.",
-    type: "website",
-  },
 };
 
 export default function LandingPage() {

@@ -37,7 +37,7 @@ export default defineConfig({
     {
       name: "unauthenticated",
       use: { ...devices["Desktop Chrome"] },
-      testMatch: /(?:route-guard|landing)\.spec\.ts/,
+      testMatch: /(?:route-guard|landing|seo)\.spec\.ts/,
     },
   ],
   webServer: {
