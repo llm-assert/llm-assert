@@ -38,7 +38,15 @@ async function main() {
     process.exit(1);
   }
 
-  const stripe = new Stripe(secretKey);
+  // Key mode detection (handles both standard sk_ and restricted rk_ keys)
+  const isLiveKey =
+    secretKey.startsWith("sk_live_") || secretKey.startsWith("rk_live_");
+  const keyMode = isLiveKey ? "live" : "test";
+  console.log(`Stripe key mode: ${keyMode}`);
+
+  const stripe = new Stripe(secretKey, {
+    apiVersion: "2026-03-25.dahlia",
+  });
   const issues: Issue[] = [];
   let passed = 0;
   let total = 0;
@@ -69,6 +77,17 @@ async function main() {
     }
 
     const product = price.product as Stripe.Product;
+
+    // Check livemode consistency
+    total++;
+    if (price.livemode !== isLiveKey) {
+      issues.push({
+        level: "ERROR",
+        message: `${planName}: price.livemode=${price.livemode} but key is ${keyMode} mode — possible partial cutover`,
+      });
+    } else {
+      passed++;
+    }
 
     // Check product metadata
     for (const [key, expectedValue] of Object.entries(expected.metadata)) {
@@ -119,8 +138,7 @@ async function main() {
       price.unit_amount != null
         ? `$${(price.unit_amount / 100).toFixed(2)}/mo`
         : "(no unit_amount)";
-    console.log(`  ${planName}: ${product.name} (${product.id}) — ${amount} ✓`);
-    passed++;
+    console.log(`  ${planName}: ${product.name} (${product.id}) — ${amount}`);
   }
 
   console.log("");

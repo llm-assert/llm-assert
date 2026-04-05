@@ -311,6 +311,57 @@ describe("POST /api/webhooks/stripe", () => {
   });
 
   describe("error handling", () => {
+    it("returns 500 and logs error when Stripe API fails during plan resolution", async () => {
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const stripeMod = await import("@/lib/stripe");
+      const mockRetrieve = (
+        stripeMod.stripe!.subscriptions as {
+          retrieve: ReturnType<typeof vi.fn>;
+        }
+      ).retrieve;
+      mockRetrieve.mockRejectedValueOnce(new Error("Stripe rate limited"));
+
+      const body = buildEvent("checkout.session.completed", {
+        mode: "subscription",
+        client_reference_id: "user-uuid-123",
+        customer: "cus_123",
+        subscription: "sub_fail",
+      });
+
+      const res = await POST(makeRequest(body));
+      expect(res.status).toBe(500);
+      expect(mockUpsert).not.toHaveBeenCalled();
+
+      // Verify the error was logged with structured context
+      const logged = errorSpy.mock.calls.find(
+        (call) =>
+          typeof call[0] === "string" && call[0].includes("resolve_plan_error"),
+      );
+      expect(logged).toBeDefined();
+      expect(logged![0]).toContain("sub_fail");
+      expect(logged![0]).toContain("Stripe rate limited");
+
+      errorSpy.mockRestore();
+    });
+
+    it("logs secret fingerprint on signature verification failure", async () => {
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const body = buildEvent("charge.succeeded", {});
+      const req = makeRequest(body, "invalid_signature_header");
+
+      await POST(req);
+
+      const logged = errorSpy.mock.calls.find(
+        (call) =>
+          typeof call[0] === "string" &&
+          call[0].includes("signature_verification_failed"),
+      );
+      expect(logged).toBeDefined();
+      expect(logged![0]).toContain(WEBHOOK_SECRET.slice(-8));
+
+      errorSpy.mockRestore();
+    });
+
     it("returns 500 when Supabase write fails", async () => {
       mockUpsert.mockResolvedValue({
         error: { code: "42501", message: "permission denied" },

@@ -83,6 +83,25 @@ jobs:
             apps/dashboard/coverage/
           retention-days: 7
 
+  verify-stripe:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Verify Stripe products and prices
+        env:
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY_LIVE }}
+          STRIPE_STARTER_PRICE_ID: ${{ secrets.STRIPE_STARTER_PRICE_ID_LIVE }}
+          STRIPE_PRO_PRICE_ID: ${{ secrets.STRIPE_PRO_PRICE_ID_LIVE }}
+          STRIPE_TEAM_PRICE_ID: ${{ secrets.STRIPE_TEAM_PRICE_ID_LIVE }}
+        run: pnpm exec tsx scripts/stripe-verify.ts
+
   commitlint:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
