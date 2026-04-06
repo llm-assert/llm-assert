@@ -40,6 +40,14 @@ export default defineConfig({
   use: {
     baseURL,
     trace: "on-first-retry",
+    ...(process.env.VERCEL_AUTOMATION_BYPASS_SECRET
+      ? {
+          extraHTTPHeaders: {
+            "x-vercel-protection-bypass":
+              process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
+          },
+        }
+      : {}),
   },
   projects: [
     {
@@ -58,11 +66,13 @@ export default defineConfig({
   ],
   globalSetup: "./smoke-setup.ts",
   globalTeardown: "./smoke-teardown.ts",
-  webServer: {
-    command: "pnpm --filter dashboard dev",
-    url: baseURL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-    cwd: path.resolve(__dirname, ".."),
-  },
+  webServer: process.env.E2E_BASE_URL
+    ? undefined
+    : {
+        command: "pnpm --filter dashboard dev",
+        url: baseURL,
+        reuseExistingServer: !process.env.CI,
+        timeout: 120_000,
+        cwd: path.resolve(__dirname, ".."),
+      },
 });

@@ -1,0 +1,182 @@
+# Deployment Verification — Post-deploy health checks and E2E tests
+#
+# Triggers on Vercel deployment_status events (fired automatically by the
+# Vercel GitHub integration). Runs a tiered verification pipeline against
+# the deployed URL.
+#
+# Verification Tiers:
+#   Tier 1 — Health Gate: curl /api/health?mode=deep, parse JSON body,
+#            assert status === "healthy". Retries with backoff for cold starts.
+#   Tier 2 — Unauthenticated E2E: Playwright unauthenticated project
+#            (landing, route-guard, SEO specs). No secrets required.
+#   Tier 3 — Authenticated E2E (production only): Playwright setup + chromium
+#            projects (auth, onboarding specs). Requires Supabase admin secrets.
+#
+# Required GitHub Secrets:
+#   VERCEL_AUTOMATION_BYPASS_SECRET — (optional) Vercel Deployment Protection bypass
+#   E2E_TEST_EMAIL                 — (Tier 3) Test user email
+#   E2E_TEST_PASSWORD              — (Tier 3) Test user password
+#   NEXT_PUBLIC_SUPABASE_URL       — (Tier 3) Supabase project URL
+#   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY — (Tier 3) Supabase publishable key
+#   SUPABASE_SERVICE_ROLE_KEY      — (Tier 3) Supabase admin key (bypasses RLS)
+
+name: Deployment Verification
+
+on:
+  deployment_status:
+
+concurrency:
+  group: deploy-verify-${{ github.event.deployment.environment }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  deployments: read
+
+jobs:
+  # ─── Tier 1 + 2: Health Gate & Unauthenticated E2E ──────────────────
+  # Runs on ALL successful deployments (preview + production)
+  verify:
+    if: github.event.deployment_status.state == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: "Tier 1: Health gate"
+        env:
+          DEPLOYMENT_URL: ${{ github.event.deployment_status.target_url }}
+          BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: |
+          BYPASS_HEADER=""
+          if [ -n "$BYPASS_SECRET" ]; then
+            BYPASS_HEADER="x-vercel-protection-bypass:${BYPASS_SECRET}"
+          fi
+
+          BODY=""
+          for i in 1 2 3; do
+            echo "Health check attempt $i/3..."
+            if BODY=$(curl -sf --max-time 15 ${BYPASS_HEADER:+-H "$BYPASS_HEADER"} \
+              "${DEPLOYMENT_URL}/api/health?mode=deep&_t=$(date +%s)" 2>/dev/null); then
+              break
+            fi
+            BODY=""
+            echo "Attempt $i failed, retrying in 10s..."
+            sleep 10
+          done
+
+          if [ -z "$BODY" ]; then
+            echo "::error::Health check failed — no response after 3 attempts"
+            exit 1
+          fi
+
+          STATUS=$(echo "$BODY" | jq -r '.status')
+          echo "Health status: $STATUS"
+          echo "$BODY" | jq .
+
+          if [ "$STATUS" != "healthy" ]; then
+            echo "::error::Health check failed — status is '$STATUS', expected 'healthy'"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ hashFiles('apps/dashboard/package.json') }}
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install chromium --with-deps
+        working-directory: apps/dashboard
+
+      - name: Install Playwright system deps (cache hit)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: pnpm exec playwright install-deps chromium
+        working-directory: apps/dashboard
+
+      - name: "Tier 2: Unauthenticated E2E"
+        env:
+          E2E_BASE_URL: ${{ github.event.deployment_status.target_url }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: pnpm --filter dashboard test:e2e -- --project=unauthenticated
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: deploy-verify-results-${{ github.event.deployment.environment }}
+          path: |
+            apps/dashboard/test-results/
+            !**/*.zip
+          retention-days: 3
+
+  # ─── Tier 3: Authenticated E2E (Production Only) ────────────────────
+  # Runs ONLY on production deployments. Requires Supabase admin secrets
+  # to create/teardown ephemeral test users.
+  verify-authenticated:
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      github.event.deployment_status.environment == 'Production'
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ hashFiles('apps/dashboard/package.json') }}
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install chromium --with-deps
+        working-directory: apps/dashboard
+
+      - name: Install Playwright system deps (cache hit)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: pnpm exec playwright install-deps chromium
+        working-directory: apps/dashboard
+
+      - name: "Tier 3: Authenticated E2E"
+        env:
+          E2E_BASE_URL: ${{ github.event.deployment_status.target_url }}
+          E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+          E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: pnpm --filter dashboard test:e2e -- --project=setup --project=chromium
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: deploy-verify-auth-results
+          path: |
+            apps/dashboard/test-results/
+            !**/*.zip
+          retention-days: 3
