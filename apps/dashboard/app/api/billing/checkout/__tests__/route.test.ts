@@ -59,7 +59,7 @@ function makeRequest(body?: unknown): Request {
 }
 
 function mockSubscriptionQuery(
-  data: { stripe_customer_id: string; status: string } | null,
+  data: { stripe_customer_id: string | null; status: string } | null,
 ) {
   const single = vi.fn().mockResolvedValue({ data, error: null });
   const eq = vi.fn().mockReturnValue({ single });
@@ -119,7 +119,7 @@ describe("POST /api/billing/checkout", () => {
     expect(await res.json()).toEqual({ error: "Invalid price ID" });
   });
 
-  it("returns 409 for active subscription", async () => {
+  it("returns 409 for active paid subscription", async () => {
     mockGetUser.mockResolvedValue({
       data: { user: { id: "user-1", email: "test@example.com" } },
     });
@@ -134,7 +134,37 @@ describe("POST /api/billing/checkout", () => {
     expect(json.error).toContain("Active subscription exists");
   });
 
-  it("returns 200 with checkout URL for new user (customer_email path)", async () => {
+  it("allows checkout for free-tier user with null stripe_customer_id", async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: "user-1", email: "test@example.com" } },
+    });
+    mockSubscriptionQuery({
+      stripe_customer_id: null,
+      status: "active",
+    });
+    mockCreateSession.mockResolvedValue({
+      url: "https://checkout.stripe.com/session_free_upgrade",
+    });
+
+    const res = await POST(makeRequest({ priceId: "price_starter_test" }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      url: "https://checkout.stripe.com/session_free_upgrade",
+    });
+
+    // Free-tier user has no Stripe customer — should use customer_email
+    expect(mockCreateSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        customer_email: "test@example.com",
+        client_reference_id: "user-1",
+      }),
+    );
+    expect(mockCreateSession).not.toHaveBeenCalledWith(
+      expect.objectContaining({ customer: expect.any(String) }),
+    );
+  });
+
+  it("returns 200 with checkout URL when no subscription row exists (backward compat)", async () => {
     mockGetUser.mockResolvedValue({
       data: { user: { id: "user-1", email: "test@example.com" } },
     });

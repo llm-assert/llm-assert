@@ -143,7 +143,7 @@ async function handleCheckoutCompleted(
       status: "active",
       evaluation_limit: plan?.evaluationLimit ?? 5_000,
     },
-    { onConflict: "stripe_customer_id" },
+    { onConflict: "user_id" },
   );
 
   if (error) throw error;

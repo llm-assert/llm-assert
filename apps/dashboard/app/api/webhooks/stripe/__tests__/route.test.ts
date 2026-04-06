@@ -201,7 +201,7 @@ describe("POST /api/webhooks/stripe", () => {
   });
 
   describe("event handlers", () => {
-    it("upserts subscription on checkout.session.completed", async () => {
+    it("upserts subscription on checkout.session.completed (keyed on user_id)", async () => {
       const body = buildEvent("checkout.session.completed", {
         mode: "subscription",
         client_reference_id: "user-uuid-123",
@@ -218,7 +218,32 @@ describe("POST /api/webhooks/stripe", () => {
           stripe_subscription_id: "sub_123",
           status: "active",
         }),
-        { onConflict: "stripe_customer_id" },
+        { onConflict: "user_id" },
+      );
+    });
+
+    it("upgrades existing free-tier row on checkout.session.completed", async () => {
+      // Free-tier row already exists for this user (created by trigger).
+      // The upsert on user_id should update it with paid plan data.
+      const body = buildEvent("checkout.session.completed", {
+        mode: "subscription",
+        client_reference_id: "user-free-tier",
+        customer: "cus_new_paid",
+        subscription: "sub_new_paid",
+      });
+
+      const res = await POST(makeRequest(body));
+      expect(res.status).toBe(200);
+      expect(mockUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          user_id: "user-free-tier",
+          stripe_customer_id: "cus_new_paid",
+          stripe_subscription_id: "sub_new_paid",
+          plan: "starter",
+          status: "active",
+          evaluation_limit: 5000,
+        }),
+        { onConflict: "user_id" },
       );
     });
 
