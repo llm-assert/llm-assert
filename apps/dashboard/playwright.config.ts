@@ -19,6 +19,14 @@ export default defineConfig({
   use: {
     baseURL,
     trace: "on-first-retry",
+    ...(process.env.VERCEL_AUTOMATION_BYPASS_SECRET
+      ? {
+          extraHTTPHeaders: {
+            "x-vercel-protection-bypass":
+              process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
+          },
+        }
+      : {}),
   },
   projects: [
     {
@@ -40,11 +48,13 @@ export default defineConfig({
       testMatch: /(?:route-guard|landing|seo)\.spec\.ts/,
     },
   ],
-  webServer: {
-    command: "pnpm dev",
-    url: baseURL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-  },
+  webServer: process.env.E2E_BASE_URL
+    ? undefined
+    : {
+        command: "pnpm dev",
+        url: baseURL,
+        reuseExistingServer: !process.env.CI,
+        timeout: 120_000,
+      },
   globalTeardown: "./e2e/global-teardown.ts",
 });
