@@ -52,19 +52,27 @@ jobs:
           fi
 
           BODY=""
+          HTTP_CODE=""
           for i in 1 2 3; do
             echo "Health check attempt $i/3..."
-            if BODY=$(curl -sf --max-time 15 ${BYPASS_HEADER:+-H "$BYPASS_HEADER"} \
-              "${DEPLOYMENT_URL}/api/health?mode=deep&_t=$(date +%s)" 2>/dev/null); then
+            HTTP_CODE=$(curl -s -o /tmp/health-body -w "%{http_code}" --max-time 15 \
+              ${BYPASS_HEADER:+-H "$BYPASS_HEADER"} \
+              "${DEPLOYMENT_URL}/api/health?mode=deep&_t=$(date +%s)" 2>/dev/null) || true
+            if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "503" ]; then
+              BODY=$(cat /tmp/health-body)
               break
             fi
+            if [ "$HTTP_CODE" = "401" ] || [ "$HTTP_CODE" = "403" ]; then
+              echo "::error::Deployment Protection is blocking requests (HTTP $HTTP_CODE). Configure VERCEL_AUTOMATION_BYPASS_SECRET in GitHub secrets."
+              exit 1
+            fi
             BODY=""
-            echo "Attempt $i failed, retrying in 10s..."
+            echo "Attempt $i failed (HTTP $HTTP_CODE), retrying in 10s..."
             sleep 10
           done
 
           if [ -z "$BODY" ]; then
-            echo "::error::Health check failed — no response after 3 attempts"
+            echo "::error::Health check failed — no response after 3 attempts (last HTTP $HTTP_CODE)"
             exit 1
           fi
 
