@@ -117,7 +117,8 @@ jobs:
         env:
           E2E_BASE_URL: ${{ github.event.deployment_status.target_url }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
-        run: pnpm --filter dashboard test:e2e -- --project=unauthenticated
+        run: pnpm exec playwright test --project=unauthenticated
+        working-directory: apps/dashboard
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -177,7 +178,8 @@ jobs:
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
-        run: pnpm --filter dashboard test:e2e -- --project=setup --project=chromium
+        run: pnpm exec playwright test --project=setup --project=chromium
+        working-directory: apps/dashboard
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
