@@ -1,0 +1,110 @@
+---
+title: Judge Configuration
+description: Configure the LLM judge — models, timeouts, fallback chain, rate limiting
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+The judge is the LLM that evaluates your assertions. Configure it globally via `playwright.config.ts` or per-test with `test.use()`.
+
+## Fallback chain
+
+```
+OPENAI_API_KEY set?
+  Yes → GPT-5.4-mini (primary)
+         Success → return score
+         Fail/timeout → try fallback
+  No  → skip to fallback
+
+ANTHROPIC_API_KEY set? (@anthropic-ai/sdk installed?)
+  Yes → Claude Haiku (fallback)
+         Success → return score
+         Fail/timeout → inconclusive
+  No  → inconclusive
+```
+
+Provider outages or timeouts result in `inconclusive` (score: `null`) — the test passes. Your CI is never blocked by a judge API outage.
+
+<Callout type="info">
+  Rate limit errors (429) from the primary model get 3 retries with exponential
+  backoff before falling through to the fallback.
+</Callout>
+
+## JudgeConfig fields
+
+| Field             | Type                                   | Default                         | Description                                        |
+| ----------------- | -------------------------------------- | ------------------------------- | -------------------------------------------------- |
+| `primaryModel`    | `string`                               | `'gpt-5.4-mini'`                | Primary judge model                                |
+| `fallbackModel`   | `string`                               | `'claude-3-5-haiku-20241022'`   | Fallback judge model                               |
+| `timeout`         | `number`                               | `10000`                         | Timeout in ms. Exceeded = `inconclusive`, not fail |
+| `openaiApiKey`    | `string`                               | `process.env.OPENAI_API_KEY`    | OpenAI API key                                     |
+| `anthropicApiKey` | `string`                               | `process.env.ANTHROPIC_API_KEY` | Anthropic API key                                  |
+| `maxInputChars`   | `number`                               | `500000`                        | Max combined input character length                |
+| `inputHandling`   | `'reject' \| 'truncate'`               | `'reject'`                      | How to handle oversized inputs                     |
+| `pricing`         | `Record<string, {...}>`                | Built-in table                  | Custom per-token pricing (USD)                     |
+| `rateLimit`       | `{ requestsPerMinute, burstCapacity }` | Disabled                        | Per-worker rate limiting                           |
+
+## Global configuration
+
+Add `judgeConfig` to the `use` block in your `playwright.config.ts`:
+
+```ts title="playwright.config.ts"
+import { defineConfig } from "@playwright/test";
+
+export default defineConfig({
+  use: {
+    judgeConfig: {
+      primaryModel: "gpt-5.4-mini",
+      timeout: 5000,
+    },
+  },
+  reporter: [
+    ["list"],
+    [
+      "@llmassert/playwright/reporter",
+      {
+        projectSlug: "my-project",
+        apiKey: process.env.LLMASSERT_API_KEY,
+      },
+    ],
+  ],
+});
+```
+
+## Per-test override
+
+Override judge settings for a specific `describe` block with `test.use()`:
+
+```ts
+import { test, expect } from "@llmassert/playwright";
+
+test.describe("high-stakes evaluations", () => {
+  test.use({ judgeConfig: { timeout: 15000 } });
+
+  test("critical response is grounded", async () => {
+    const response = "We process refunds within 5 business days.";
+    const context = "Refunds are processed in 3-5 business days.";
+
+    await expect(response).toBeGroundedIn(context, { threshold: 0.95 });
+  });
+});
+```
+
+## Rate limiting
+
+For CI environments with parallel Playwright workers, configure rate limiting to avoid hitting provider limits:
+
+```ts
+judgeConfig: {
+  rateLimit: {
+    requestsPerMinute: 30,  // per worker
+    burstCapacity: 5,
+  },
+}
+```
+
+<Callout type="warn">
+  Rate limiting is per-worker. With 4 parallel workers at 30 RPM each, total
+  throughput is 120 RPM. Set `requestsPerMinute` to
+  `Math.floor(your_provider_limit / worker_count)`.
+</Callout>

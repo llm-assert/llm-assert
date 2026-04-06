@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { MobileNav } from "./mobile-nav";
 
 const navLinks = [
+  { label: "Docs", href: "https://docs.llmassert.com" },
   { label: "Features", href: "#features" },
   { label: "Pricing", href: "#pricing" },
 ];
@@ -21,6 +22,10 @@ export function SiteHeader() {
             <a
               key={link.href}
               href={link.href}
+              {...(link.href.startsWith("http") && {
+                target: "_blank",
+                rel: "noopener noreferrer",
+              })}
               className="text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
               {link.label}

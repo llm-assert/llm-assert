@@ -1,0 +1,90 @@
+---
+title: Dashboard Setup
+description: Send test results to the LLMAssert dashboard for trend analysis
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+The dashboard reporter sends evaluation results to [llmassert.com](https://llmassert.com) for trend analysis and team visibility. It is optional — matchers work without it.
+
+## 1. Create an account
+
+Sign up at [llmassert.com/sign-up](https://llmassert.com/sign-up). The free tier includes 100 evaluations per month.
+
+## 2. Create a project
+
+After signing in, create a project from the dashboard. Note your project slug (e.g., `my-chatbot`).
+
+## 3. Get your API key
+
+Go to [Settings > API Keys](https://llmassert.com/settings/api-keys) and create a new key. Store it securely — it's only shown once.
+
+## 4. Configure the reporter
+
+Add the reporter to your `playwright.config.ts`:
+
+```ts title="playwright.config.ts"
+import { defineConfig } from "@playwright/test";
+
+export default defineConfig({
+  reporter: [
+    ["list"],
+    [
+      "@llmassert/playwright/reporter",
+      {
+        projectSlug: "my-chatbot",
+        apiKey: process.env.LLMASSERT_API_KEY,
+      },
+    ],
+  ],
+});
+```
+
+Set the API key as an environment variable:
+
+```bash
+export LLMASSERT_API_KEY="lma_your-api-key-here"
+```
+
+## 5. Run your tests
+
+```bash
+pnpm exec playwright test
+```
+
+Results will appear in your dashboard automatically.
+
+## Local-only mode
+
+Omit `apiKey` to run without dashboard integration. Evaluations are collected and assertions work normally — results just aren't sent to the dashboard.
+
+```ts
+["@llmassert/playwright/reporter", {
+  projectSlug: "my-project",
+  // No apiKey — local-only mode
+}],
+```
+
+## JSON file reporter
+
+For local development or CI artifact storage, use the JSON reporter instead of (or alongside) the dashboard reporter:
+
+```ts title="playwright.config.ts"
+reporter: [
+  ["list"],
+  ["@llmassert/playwright/json-reporter"],
+],
+```
+
+Results are written to `test-results/llmassert-results.json`. See [Reporters](/configuration/reporters) for full configuration options.
+
+<Callout type="info">
+  You can use both reporters together to get local output and dashboard
+  ingestion in the same run.
+</Callout>
+
+## Next steps
+
+- [Configure the judge](/configuration/judge) — timeouts, models, rate limiting
+- [Set up CI](/guides/ci-github-actions) — GitHub Actions integration
+- [Understand scores](/guides/understanding-scores) — how scoring and thresholds work

@@ -1,0 +1,117 @@
+---
+title: Ingest API
+description: IngestPayload shape, error codes, and replay workflow
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+The ingest API receives evaluation results from the reporter. You typically don't call it directly — the reporter handles this. This reference is useful for custom integrations or replaying JSON files.
+
+## Endpoint
+
+```
+POST https://llmassert.com/api/ingest
+```
+
+## Authentication
+
+```
+Authorization: Bearer lma_your-api-key-here
+```
+
+API keys are created in the dashboard at [Settings > API Keys](https://llmassert.com/settings/api-keys).
+
+## Request body (IngestPayload)
+
+```ts
+interface IngestPayload {
+  project_slug: string; // lowercase alphanumeric + hyphens
+  run_id: string; // UUID
+  run: {
+    started_at: string; // ISO 8601 timestamp
+    finished_at?: string; // ISO 8601 timestamp
+    ci_provider?: string;
+    ci_run_url?: string;
+    branch?: string;
+    commit_sha?: string;
+    metadata?: Record<string, unknown>;
+    hardening_summary?: {
+      total_input_rejected: number;
+      total_rate_limited: number;
+      total_backoff_ms: number;
+    };
+  };
+  evaluations: Evaluation[]; // min: 1, max: 500
+}
+```
+
+Each evaluation in the array:
+
+```ts
+interface Evaluation {
+  assertion_type: "groundedness" | "pii" | "sentiment" | "schema" | "fuzzy";
+  test_name: string;
+  test_file?: string;
+  input_text: string;
+  context_text?: string;
+  expected_value?: string;
+  result: "pass" | "fail" | "inconclusive";
+  score: number | null;
+  reasoning: string; // max: 5000 chars
+  judge_model: string;
+  judge_latency_ms: number;
+  judge_input_tokens?: number;
+  judge_output_tokens?: number;
+  judge_cost_usd?: number;
+  fallback_used: boolean;
+  threshold: number;
+  threshold_source?: "inline" | "remote" | "default";
+  input_truncated?: boolean;
+  injection_detected?: boolean;
+  rate_limited?: boolean;
+  judge_backoff_ms?: number;
+  failure_reason?:
+    | "provider_error"
+    | "rate_limited"
+    | "timeout"
+    | "parse_error"
+    | null;
+}
+```
+
+## Error responses
+
+| Status | Code                | Description                                        |
+| ------ | ------------------- | -------------------------------------------------- |
+| 401    | `UNAUTHORIZED`      | Invalid or missing API key                         |
+| 400    | `INVALID_PAYLOAD`   | Request body fails validation                      |
+| 404    | `PROJECT_NOT_FOUND` | `project_slug` doesn't match the API key's project |
+| 403    | `NO_SUBSCRIPTION`   | No active subscription for this user               |
+| 429    | `QUOTA_EXCEEDED`    | Monthly evaluation limit reached                   |
+| 500    | `INTERNAL_ERROR`    | Server error                                       |
+
+## Constraints
+
+| Field          | Constraint                                |
+| -------------- | ----------------------------------------- |
+| `project_slug` | Regex: `^[a-z0-9-]+$`, max 100 chars      |
+| `run_id`       | Must be a valid UUID                      |
+| `evaluations`  | Min 1, max 500 per request                |
+| `reasoning`    | Max 5000 chars                            |
+| `score`        | Must be null (if inconclusive) or 0.0-1.0 |
+
+<Callout type="info">
+  The dashboard reporter automatically batches runs with more than 500
+  evaluations into multiple requests sharing the same `run_id`.
+</Callout>
+
+## Replay from JSON
+
+The JSON reporter output is directly compatible with this endpoint:
+
+```bash
+curl -X POST https://llmassert.com/api/ingest \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $LLMASSERT_API_KEY" \
+  -d @test-results/llmassert-results.json
+```

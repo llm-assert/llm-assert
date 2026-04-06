@@ -1,0 +1,76 @@
+---
+title: Configuration Reference
+description: Complete reference for JudgeConfig, ReporterConfig, and JSONReporterConfig
+---
+
+## JudgeConfig
+
+Configure via `playwright.config.ts` under `use.judgeConfig` or per-test with `test.use()`.
+
+```ts
+interface JudgeConfig {
+  primaryModel?: string; // default: 'gpt-5.4-mini'
+  fallbackModel?: string; // default: 'claude-3-5-haiku-20241022'
+  timeout?: number; // default: 10000 (ms)
+  openaiApiKey?: string; // default: process.env.OPENAI_API_KEY
+  anthropicApiKey?: string; // default: process.env.ANTHROPIC_API_KEY
+  maxInputChars?: number; // default: 500000
+  inputHandling?: "reject" | "truncate"; // default: 'reject'
+  pricing?: Record<
+    string,
+    {
+      inputPerToken: number;
+      outputPerToken: number;
+    }
+  >;
+  rateLimit?: {
+    // default: undefined (disabled)
+    requestsPerMinute: number; // required when rateLimit is set
+    burstCapacity: number; // default: 10
+  };
+}
+```
+
+## ReporterConfig
+
+Configure in `playwright.config.ts` reporter array for `@llmassert/playwright/reporter`.
+
+```ts
+interface ReporterConfig {
+  projectSlug: string; // required
+  apiKey?: string; // omit for local-only mode
+  dashboardUrl?: string; // default: 'https://llmassert.com'
+  batchSize?: number; // default: 50
+  timeout?: number; // default: 10000 (ms)
+  retries?: number; // default: 1
+  onError?: "warn" | "throw" | "silent"; // default: 'warn'
+  onThresholdFetchError?: "warn" | "throw" | "silent"; // default: 'warn'
+  metadata?: Record<string, unknown>;
+}
+```
+
+## JSONReporterConfig
+
+Configure in `playwright.config.ts` reporter array for `@llmassert/playwright/json-reporter`.
+
+```ts
+interface JSONReporterConfig {
+  outputFile?: string; // default: 'test-results/llmassert-results.json'
+  projectSlug?: string; // default: 'local'
+  onError?: "warn" | "throw" | "silent"; // default: 'warn'
+  metadata?: Record<string, unknown>;
+}
+```
+
+Environment variable override: `LLMASSERT_OUTPUT_FILE`.
+
+## Environment variables
+
+| Variable                | Used by       | Description                    |
+| ----------------------- | ------------- | ------------------------------ |
+| `OPENAI_API_KEY`        | Judge         | Primary judge model API key    |
+| `ANTHROPIC_API_KEY`     | Judge         | Fallback judge model API key   |
+| `LLMASSERT_API_KEY`     | Reporter      | Dashboard ingest API key       |
+| `LLMASSERT_OUTPUT_FILE` | JSON Reporter | Override output file path      |
+| `BRANCH_NAME`           | Reporter      | Git branch (non-GitHub CI)     |
+| `COMMIT_SHA`            | Reporter      | Git commit SHA (non-GitHub CI) |

@@ -1,0 +1,42 @@
+---
+title: Matchers
+description: Overview of all 5 LLM assertion matchers
+---
+
+LLMAssert provides 5 assertion matchers. All return `{ pass: boolean, score: number | null, reasoning: string }` and support `.not` negation.
+
+| Matcher                                    | What it checks                          | Score meaning                                |
+| ------------------------------------------ | --------------------------------------- | -------------------------------------------- |
+| [`toBeGroundedIn`](/matchers/groundedness) | Every claim is supported by the context | 1.0 = fully grounded, 0.0 = fabricated       |
+| [`toBeFreeOfPII`](/matchers/pii)           | No personally identifiable information  | 1.0 = no PII, 0.0 = definite PII             |
+| [`toMatchTone`](/matchers/tone)            | Matches a described tone/sentiment      | 1.0 = perfect match, 0.0 = opposite tone     |
+| [`toBeFormatCompliant`](/matchers/format)  | Conforms to a described structure       | 1.0 = fully compliant, 0.0 = wrong structure |
+| [`toSemanticMatch`](/matchers/semantic)    | Semantically similar to reference text  | 1.0 = identical meaning, 0.0 = unrelated     |
+
+## Common patterns
+
+All matchers accept an optional `threshold` override:
+
+```ts
+await expect(response).toBeGroundedIn(context, { threshold: 0.9 });
+```
+
+All matchers support `.not` negation:
+
+```ts
+await expect(creativeResponse).not.toBeGroundedIn(context);
+```
+
+A `null` score means the evaluation was `inconclusive` (judge unavailable) — the test passes rather than producing a false failure.
+
+## Default threshold
+
+All matchers use **0.7** as the default threshold. Scores at or above the threshold pass.
+
+Threshold sources (highest priority first):
+
+1. **Inline** — `{ threshold: 0.9 }` passed to the matcher
+2. **Remote** — configured per-assertion-type in the dashboard
+3. **Default** — 0.7
+
+See [Thresholds](/configuration/thresholds) for detailed guidance on choosing values per matcher.

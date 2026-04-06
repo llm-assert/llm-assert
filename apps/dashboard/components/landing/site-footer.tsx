@@ -9,7 +9,15 @@ export function SiteFooter() {
         </p>
         <nav className="flex gap-6">
           <a
-            href="https://github.com/llmassert"
+            href="https://docs.llmassert.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Docs
+          </a>
+          <a
+            href="https://github.com/llm-assert/llm-assert"
             target="_blank"
             rel="noopener noreferrer"
             className="text-sm text-muted-foreground transition-colors hover:text-foreground"

@@ -1,0 +1,92 @@
+---
+title: Understanding Scores
+description: How LLM judge scoring works — nondeterminism, cost, and the inconclusive state
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+LLMAssert uses an LLM (the "judge") to evaluate your assertions. This page explains how scoring works, why scores vary between runs, and what `inconclusive` means.
+
+## How the judge works
+
+1. Your test input (response text, context, expected value) is sent to the judge model
+2. The judge returns a **score** (0.0-1.0) and **reasoning** (natural-language explanation)
+3. The score is compared against the **threshold** to determine pass/fail
+4. If the judge is unavailable, the result is **inconclusive** (test passes)
+
+## Scores are nondeterministic
+
+<Callout type="warn">
+  **This is the most important concept for QA engineers new to LLM-as-judge.**
+</Callout>
+
+Unlike traditional assertions (`expect(x).toBe(y)`), LLM judge scores are inherently nondeterministic. The same input can produce different scores across runs:
+
+| Run   | Score | Result (threshold: 0.7) |
+| ----- | ----- | ----------------------- |
+| Run 1 | 0.72  | Pass                    |
+| Run 2 | 0.68  | **Fail**                |
+| Run 3 | 0.74  | Pass                    |
+
+This is normal. The LLM processes the input slightly differently each time.
+
+### How to handle this
+
+1. **Set thresholds with a margin.** If you want to catch scores below 0.65, set the threshold to 0.70 — not 0.65. This gives a buffer against score variation.
+
+2. **Use the `reasoning` field.** When a score is surprising, check the reasoning in the dashboard. It explains exactly why the judge scored the way it did.
+
+3. **Be aware of model differences.** GPT-5.4-mini and Claude Haiku may score the same input differently. If the fallback model is used, score distributions can shift.
+
+4. **Don't set thresholds at 1.0.** No LLM will consistently score 1.0 on valid inputs. Use 0.90-0.95 as your "strictest" threshold.
+
+## The inconclusive state
+
+When the judge is unavailable (API outage, timeout, rate limit exhaustion), the evaluation returns:
+
+- `result: "inconclusive"`
+- `score: null`
+- `pass: true` (the test passes)
+
+**Provider outages never fail your CI.** This is by design — your test suite should not be blocked by a third-party API issue.
+
+The dashboard tracks inconclusive evaluations separately so you can monitor judge availability.
+
+### Failure reasons
+
+| Reason           | What happened                                      |
+| ---------------- | -------------------------------------------------- |
+| `timeout`        | Judge didn't respond within the configured timeout |
+| `provider_error` | API returned an error (auth, server error)         |
+| `rate_limited`   | Rate limit exceeded after all retries              |
+| `parse_error`    | Judge response couldn't be parsed as JSON          |
+
+## Cost
+
+Each assertion makes one API call to the judge model. Typical costs:
+
+| Model            | Role     | Cost per 1K evals | Notes                                   |
+| ---------------- | -------- | ----------------- | --------------------------------------- |
+| GPT-5.4-mini     | Primary  | ~$0.03            | $0.15/1M input + $0.60/1M output tokens |
+| Claude 3.5 Haiku | Fallback | ~$0.16            | $0.80/1M input + $4.00/1M output tokens |
+
+A typical assertion uses ~500 input tokens and ~100 output tokens.
+
+<Callout type="info">
+  The fallback model (Haiku) is ~5x more expensive than the primary
+  (GPT-5.4-mini). If you see frequent fallback usage in the dashboard, check
+  your OpenAI API key and rate limits.
+</Callout>
+
+Cost per evaluation appears in the dashboard and in the JSON reporter output. Use the `pricing` config to override rates if your provider pricing differs.
+
+## Import paths
+
+The package provides four import paths:
+
+| Import                                | Use for                                                    |
+| ------------------------------------- | ---------------------------------------------------------- |
+| `@llmassert/playwright`               | `test`, `expect`, types, and `JudgeClient`                 |
+| `@llmassert/playwright/reporter`      | Dashboard reporter for `playwright.config.ts`              |
+| `@llmassert/playwright/json-reporter` | Local file reporter                                        |
+| `@llmassert/playwright/fixtures`      | Fixture-extended `test` without custom matchers (advanced) |

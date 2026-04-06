@@ -1,0 +1,56 @@
+---
+title: toMatchTone
+description: Assert that text matches a described tone or sentiment
+---
+
+Validates that text matches a natural-language description of the expected tone. Score 1.0 means a perfect tone match; 0.0 means the opposite tone.
+
+## Usage
+
+```ts
+await expect(response).toMatchTone("professional and helpful");
+await expect(response).toMatchTone("empathetic", { threshold: 0.8 });
+```
+
+### Negation
+
+Verify a response avoids a specific tone:
+
+```ts
+await expect(response).not.toMatchTone("sarcastic or dismissive");
+```
+
+## Example — brand voice check
+
+```ts
+import { test, expect } from "@llmassert/playwright";
+
+test("support replies maintain professional tone", async () => {
+  const response = await supportBot.reply("This product is terrible!");
+
+  await expect(response).toMatchTone("empathetic and solution-oriented");
+});
+```
+
+## Effective tone descriptors
+
+Use specific, descriptive phrases:
+
+| Good                               | Too vague  |
+| ---------------------------------- | ---------- |
+| "professional and helpful"         | "good"     |
+| "empathetic and solution-oriented" | "nice"     |
+| "concise and technical"            | "short"    |
+| "warm and encouraging"             | "positive" |
+
+## Threshold guidance
+
+| Threshold | Meaning                          | Use when                                |
+| --------- | -------------------------------- | --------------------------------------- |
+| 0.90      | Strict — tone must closely match | Brand voice compliance, customer-facing |
+| 0.75      | Balanced — right general tone    | Internal communications                 |
+| 0.70      | Default — allows tonal variation | General chatbots                        |
+
+## Dashboard type
+
+Appears as assertion type `sentiment` in the dashboard.

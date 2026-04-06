@@ -17,19 +17,22 @@ const steps = [
     id: "create-project" as const,
     label: "Create your first project",
     description: "Set up a project to start collecting test results.",
+    docsUrl: undefined as string | undefined,
     icon: FolderPlus,
   },
   {
     id: "install-reporter" as const,
     label: "Install the reporter",
-    description: "Add @llmassert/playwright to your test suite.",
+    description: "Add @llmassert/playwright to your test suite. See the docs →",
+    docsUrl: "https://docs.llmassert.com/getting-started/installation",
     icon: Download,
   },
   {
     id: "run-first-test" as const,
     label: "Run your first test",
     description:
-      "Run your Playwright tests — results will appear here automatically.",
+      "Run your Playwright tests — results will appear here automatically. Follow the guide →",
+    docsUrl: "https://docs.llmassert.com/getting-started/first-test",
     icon: Play,
   },
 ];
@@ -167,7 +170,18 @@ export function OnboardingChecklist({
                         </p>
                         {(status === "active" || status === "pending") && (
                           <p className="mt-0.5 text-xs text-muted-foreground">
-                            {s.description}
+                            {s.docsUrl ? (
+                              <a
+                                href={s.docsUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="underline underline-offset-2 hover:text-foreground"
+                              >
+                                {s.description}
+                              </a>
+                            ) : (
+                              s.description
+                            )}
                           </p>
                         )}
                         {status === "active" && s.id === "create-project" && (

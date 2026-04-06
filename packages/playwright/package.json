@@ -106,7 +106,7 @@
     "url": "git+https://github.com/llm-assert/llm-assert.git",
     "directory": "packages/playwright"
   },
-  "homepage": "https://github.com/llm-assert/llm-assert/tree/main/packages/playwright#readme",
+  "homepage": "https://docs.llmassert.com",
   "bugs": {
     "url": "https://github.com/llm-assert/llm-assert/issues"
   },

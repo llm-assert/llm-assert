@@ -1,0 +1,97 @@
+---
+title: GitHub Actions CI
+description: Run LLM assertions in GitHub Actions with automatic metadata
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+GitHub Actions is the first-class CI integration. Branch, commit SHA, and run URL are automatically detected with zero configuration.
+
+## Workflow example
+
+```yaml title=".github/workflows/llm-tests.yml"
+name: LLM Tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm exec playwright install --with-deps chromium
+
+      - run: pnpm exec playwright test
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          LLMASSERT_API_KEY: ${{ secrets.LLMASSERT_API_KEY }}
+          # Optional: Anthropic fallback
+          # ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+## Required secrets
+
+Add these to your repository settings under **Settings > Secrets and variables > Actions**:
+
+| Secret              | Required | Description                                  |
+| ------------------- | -------- | -------------------------------------------- |
+| `OPENAI_API_KEY`    | Yes      | Judge model API key                          |
+| `LLMASSERT_API_KEY` | No       | Dashboard reporter key (omit for local-only) |
+| `ANTHROPIC_API_KEY` | No       | Fallback judge key                           |
+
+## Auto-detected metadata
+
+When running in GitHub Actions, the reporter automatically captures:
+
+| Field         | Source            | Example                                          |
+| ------------- | ----------------- | ------------------------------------------------ |
+| `ci_provider` | Auto-detected     | `"github_actions"`                               |
+| `branch`      | `GITHUB_REF_NAME` | `"main"`                                         |
+| `commit_sha`  | `GITHUB_SHA`      | `"abc1234..."`                                   |
+| `ci_run_url`  | Auto-generated    | `"https://github.com/org/repo/actions/runs/123"` |
+
+These appear in the dashboard on each test run for traceability.
+
+## Saving JSON artifacts
+
+Upload the JSON reporter output as a CI artifact for later review:
+
+```yaml
+- run: pnpm exec playwright test
+  env:
+    OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+- uses: actions/upload-artifact@v4
+  if: always()
+  with:
+    name: llm-eval-results
+    path: test-results/llmassert-results.json
+```
+
+## Other CI providers
+
+For GitLab CI, CircleCI, and Jenkins, the CI provider is auto-detected but branch and commit metadata require manual environment variables:
+
+```yaml
+# GitLab CI example
+variables:
+  BRANCH_NAME: $CI_COMMIT_REF_NAME
+  COMMIT_SHA: $CI_COMMIT_SHA
+```
+
+<Callout type="info">
+  `ci_run_url` is only auto-generated for GitHub Actions. Other providers get
+  `ci_provider` detection but no clickable run links in the dashboard.
+</Callout>

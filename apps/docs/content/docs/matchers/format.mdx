@@ -1,0 +1,64 @@
+---
+title: toBeFormatCompliant
+description: Assert that text conforms to a described structural format
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+Validates that text conforms to a described structural format. The `schema` parameter is a **natural-language description** of the expected format, not a JSON Schema or Zod object.
+
+## Usage
+
+```ts
+await expect(response).toBeFormatCompliant(
+  "JSON object with required fields: id (number), name (string), tags (array of strings)",
+);
+```
+
+### Negation
+
+Verify free-form output:
+
+```ts
+await expect(response).not.toBeFormatCompliant("numbered list");
+```
+
+## Example — structured API response
+
+```ts
+import { test, expect } from "@llmassert/playwright";
+
+test("AI generates valid product descriptions", async () => {
+  const description = await ai.generateProductDescription(product);
+
+  await expect(description).toBeFormatCompliant(
+    "Three paragraphs: overview, key features as bullet list, call to action",
+  );
+});
+```
+
+## Effective schema descriptions
+
+<Callout type="info">
+  The schema parameter is a natural-language description, not a JSON Schema. Be
+  specific about structure, required fields, and data types.
+</Callout>
+
+| Good                                                  | Too vague          |
+| ----------------------------------------------------- | ------------------ |
+| "JSON object with fields: id (number), name (string)" | "JSON"             |
+| "Markdown with H2 headers and bullet lists"           | "formatted text"   |
+| "Three paragraphs, each 2-4 sentences"                | "a few paragraphs" |
+| "CSV with columns: date, amount, description"         | "tabular data"     |
+
+## Threshold guidance
+
+| Threshold | Meaning                                               | Use when                                |
+| --------- | ----------------------------------------------------- | --------------------------------------- |
+| 0.90      | Strict — must match all structural elements           | API response validation, data pipelines |
+| 0.75      | Balanced — key structure present, minor deviations OK | Content generation                      |
+| 0.70      | Default — general format compliance                   | General use                             |
+
+## Dashboard type
+
+Appears as assertion type `schema` in the dashboard.
