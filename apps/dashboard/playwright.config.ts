@@ -43,6 +43,15 @@ export default defineConfig({
       dependencies: ["setup"],
     },
     {
+      name: "billing-alert",
+      use: {
+        ...devices["Desktop Chrome"],
+        storageState: "e2e/.auth/user.json",
+      },
+      testMatch: /billing-alert\.spec\.ts/,
+      dependencies: ["setup"],
+    },
+    {
       name: "unauthenticated",
       use: { ...devices["Desktop Chrome"] },
       testMatch: /(?:route-guard|landing|seo)\.spec\.ts/,

@@ -1,8 +1,10 @@
+import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { BillingAlertBanner } from "@/components/billing/billing-alert-banner";
 
 export default async function DashboardLayout({
   children,
@@ -36,7 +38,17 @@ export default async function DashboardLayout({
       </a>
       <SidebarProvider defaultOpen={defaultOpen}>
         <AppSidebar user={dashboardUser} />
-        <SidebarInset id="main-content">{children}</SidebarInset>
+        <SidebarInset id="main-content">
+          <div
+            aria-live="assertive"
+            aria-atomic="true"
+            id="billing-alert-region"
+          />
+          <Suspense fallback={null}>
+            <BillingAlertBanner />
+          </Suspense>
+          {children}
+        </SidebarInset>
       </SidebarProvider>
     </>
   );

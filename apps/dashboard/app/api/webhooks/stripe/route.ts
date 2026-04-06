@@ -1,4 +1,5 @@
 import type Stripe from "stripe";
+import { revalidateTag } from "next/cache";
 import { stripe } from "@/lib/stripe";
 import { serverEnv } from "@/lib/env.server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
@@ -147,6 +148,7 @@ async function handleCheckoutCompleted(
   );
 
   if (error) throw error;
+  revalidateTag(`subscription-${userId}`, "max");
 }
 
 async function handleSubscriptionUpdated(
@@ -189,6 +191,7 @@ async function handleSubscriptionUpdated(
     .eq("stripe_customer_id", customerId);
 
   if (error) throw error;
+  await invalidateSubscriptionCache(customerId, db);
 }
 
 async function handleSubscriptionDeleted(
@@ -207,6 +210,7 @@ async function handleSubscriptionDeleted(
     .eq("stripe_customer_id", customerId);
 
   if (error) throw error;
+  await invalidateSubscriptionCache(customerId, db);
 }
 
 async function handleInvoicePaymentFailed(
@@ -225,6 +229,7 @@ async function handleInvoicePaymentFailed(
     .eq("stripe_customer_id", customerId);
 
   if (error) throw error;
+  await invalidateSubscriptionCache(customerId, db);
 }
 
 async function handleInvoicePaid(
@@ -243,6 +248,7 @@ async function handleInvoicePaid(
     .eq("stripe_customer_id", customerId);
 
   if (error) throw error;
+  await invalidateSubscriptionCache(customerId, db);
 }
 
 // ---------------------------------------------------------------------------
@@ -269,6 +275,21 @@ function logWebhook(
     console.error(JSON.stringify(entry));
   } else {
     console.log(JSON.stringify(entry));
+  }
+}
+
+/** Look up user_id by stripe_customer_id and invalidate their subscription cache. */
+async function invalidateSubscriptionCache(
+  customerId: string,
+  db: ReturnType<typeof supabaseAdmin>,
+): Promise<void> {
+  const { data } = await db
+    .from("subscriptions")
+    .select("user_id")
+    .eq("stripe_customer_id", customerId)
+    .maybeSingle();
+  if (data?.user_id) {
+    revalidateTag(`subscription-${data.user_id}`, "max");
   }
 }
 

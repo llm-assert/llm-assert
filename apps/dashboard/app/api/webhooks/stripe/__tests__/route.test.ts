@@ -6,14 +6,21 @@ import { POST } from "../route";
 // variables. All values must be inlined or use vi.hoisted().
 // ---------------------------------------------------------------------------
 
-const { WEBHOOK_SECRET, mockInsert, mockUpsert, mockUpdate, mockEq } =
-  vi.hoisted(() => ({
-    WEBHOOK_SECRET: "whsec_test_secret_for_unit_tests",
-    mockInsert: vi.fn(),
-    mockUpsert: vi.fn(),
-    mockUpdate: vi.fn(),
-    mockEq: vi.fn(),
-  }));
+const {
+  WEBHOOK_SECRET,
+  mockInsert,
+  mockUpsert,
+  mockUpdate,
+  mockEq,
+  mockSelect,
+} = vi.hoisted(() => ({
+  WEBHOOK_SECRET: "whsec_test_secret_for_unit_tests",
+  mockInsert: vi.fn(),
+  mockUpsert: vi.fn(),
+  mockUpdate: vi.fn(),
+  mockEq: vi.fn(),
+  mockSelect: vi.fn(),
+}));
 
 vi.mock("@/lib/supabase/admin", () => ({
   supabaseAdmin: () => ({
@@ -24,9 +31,14 @@ vi.mock("@/lib/supabase/admin", () => ({
       return {
         upsert: mockUpsert,
         update: mockUpdate,
+        select: mockSelect,
       };
     },
   }),
+}));
+
+vi.mock("next/cache", () => ({
+  revalidateTag: vi.fn(),
 }));
 
 vi.mock("@/lib/stripe", async () => {
@@ -85,6 +97,14 @@ function resetDbMocks() {
   mockUpsert.mockReset().mockResolvedValue({ error: null });
   mockUpdate.mockReset().mockReturnValue({ eq: mockEq });
   mockEq.mockReset().mockResolvedValue({ error: null });
+  // invalidateSubscriptionCache: .select("user_id").eq(...).maybeSingle()
+  mockSelect.mockReset().mockReturnValue({
+    eq: vi.fn().mockReturnValue({
+      maybeSingle: vi.fn().mockResolvedValue({
+        data: { user_id: "test-user-id" },
+      }),
+    }),
+  });
 }
 
 vi.mock("@/lib/plans", () => ({

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getSubscription } from "@/lib/supabase/queries/subscription";
 import { PLANS } from "@/lib/plans";
 import type { PlanName } from "@/lib/plans.client";
 import { getPlanDisplay } from "@/lib/plans.client";
@@ -6,7 +7,6 @@ import { SubscriptionStatus } from "@/components/billing/subscription-status";
 import { UsageMeter } from "@/components/billing/usage-meter";
 import { PlanCards } from "@/components/billing/plan-cards";
 import { CheckoutSuccessBanner } from "@/components/billing/checkout-success-banner";
-import { PastDueBanner } from "@/components/billing/past-due-banner";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -28,14 +28,8 @@ export default async function BillingPage({
     redirect("/sign-in");
   }
 
-  // Fetch subscription — may be null for free-tier users
-  const { data: subscription } = await supabase
-    .from("subscriptions")
-    .select(
-      "plan, status, evaluations_used, evaluation_limit, current_period_end",
-    )
-    .eq("user_id", user.id)
-    .maybeSingle();
+  // Use shared cached helper — deduplicated with layout's BillingAlertBanner fetch
+  const subscription = await getSubscription(user.id);
 
   const currentPlan = (subscription?.plan ?? "free") as PlanName;
   const planDisplay = getPlanDisplay(currentPlan);
@@ -65,7 +59,6 @@ export default async function BillingPage({
       <h1 className="text-2xl font-semibold">Billing</h1>
 
       {showCheckoutSuccess && <CheckoutSuccessBanner show />}
-      {subscriptionStatus === "past_due" && <PastDueBanner />}
 
       <Card>
         <CardHeader>
