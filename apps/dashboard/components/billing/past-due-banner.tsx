@@ -1,21 +1,30 @@
 import { AlertTriangle } from "lucide-react";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { BillingActions } from "./billing-actions";
 
 export function PastDueBanner() {
   return (
-    <div
+    <Alert
+      variant="destructive"
       role="alert"
-      className="flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200 sm:flex-row sm:items-center sm:justify-between"
+      aria-atomic="true"
+      aria-label="Billing alert"
+      data-testid="billing-alert-banner"
     >
-      <div className="flex items-center gap-3">
-        <AlertTriangle className="size-5 shrink-0" />
-        <p className="text-sm">
-          Your payment method failed. Update it to avoid service interruption.
+      <AlertTriangle aria-hidden="true" />
+      <AlertTitle>
+        <span className="sr-only">Error: </span>
+        Payment past due
+      </AlertTitle>
+      <AlertDescription>
+        <p>
+          Your payment method failed. Assertion scoring will stop when your
+          grace period ends — update your payment method to keep tests passing.
         </p>
-      </div>
-      <div className="shrink-0 sm:w-48">
-        <BillingActions action="portal" label="Update Payment Method" />
-      </div>
-    </div>
+        <div className="mt-2 w-full sm:w-48" data-testid="billing-alert-cta">
+          <BillingActions action="portal" label="Update Payment Method" />
+        </div>
+      </AlertDescription>
+    </Alert>
   );
 }
