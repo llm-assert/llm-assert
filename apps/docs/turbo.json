@@ -3,6 +3,9 @@
   "tasks": {
     "build": {
       "env": []
+    },
+    "typecheck": {
+      "dependsOn": ["^build"]
     }
   }
 }
