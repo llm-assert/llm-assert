@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1
+
+### Patch Changes
+
+- [#68](https://github.com/llm-assert/llm-assert/pull/68) [`98fb652`](https://github.com/llm-assert/llm-assert/commit/98fb652e4261e42bd519ac174a2c12474f99d171) Thanks [@Cporter97](https://github.com/Cporter97)! - Add `.env.example` documenting all environment variables for npm consumers (judge API keys, reporter config, debug flags) and include it in the published tarball
+
 ## 0.3.0
 
 ### Minor Changes

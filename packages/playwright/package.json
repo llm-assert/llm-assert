@@ -1,6 +1,6 @@
 {
   "name": "@llmassert/playwright",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Playwright assertion matchers for testing LLM outputs — groundedness, PII, sentiment, schema, and fuzzy matching",
   "type": "module",
   "main": "./dist/index.cjs",
