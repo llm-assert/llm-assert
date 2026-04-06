@@ -107,6 +107,18 @@ export interface ReporterConfig {
   metadata?: Record<string, unknown>;
 }
 
+/** Configuration for the JSON file reporter */
+export interface JSONReporterConfig {
+  /** Output file path (default: 'test-results/llmassert-results.json') */
+  outputFile?: string;
+  /** Project slug included in output for replay compatibility (default: 'local') */
+  projectSlug?: string;
+  /** Error handling mode (default: 'warn') */
+  onError?: "warn" | "throw" | "silent";
+  /** Arbitrary metadata attached to the run */
+  metadata?: Record<string, unknown>;
+}
+
 /** A single evaluation result collected by the reporter */
 export interface EvaluationRecord {
   assertionType: AssertionType;

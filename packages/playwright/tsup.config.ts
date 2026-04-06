@@ -1,7 +1,12 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["src/index.ts", "src/reporter.ts", "src/fixtures.ts"],
+  entry: [
+    "src/index.ts",
+    "src/reporter.ts",
+    "src/fixtures.ts",
+    "src/json-reporter.ts",
+  ],
   format: ["cjs", "esm"],
   dts: true,
   clean: true,

@@ -27,6 +27,16 @@
         "default": "./dist/reporter.cjs"
       }
     },
+    "./json-reporter": {
+      "import": {
+        "types": "./dist/json-reporter.d.ts",
+        "default": "./dist/json-reporter.js"
+      },
+      "require": {
+        "types": "./dist/json-reporter.d.cts",
+        "default": "./dist/json-reporter.cjs"
+      }
+    },
     "./fixtures": {
       "import": {
         "types": "./dist/fixtures.d.ts",

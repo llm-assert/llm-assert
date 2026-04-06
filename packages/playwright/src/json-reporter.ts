@@ -7,6 +7,8 @@ import type {
   TestResult,
 } from "@playwright/test/reporter";
 import { randomUUID } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 import {
   ATTACHMENT_NAME,
   parseEvaluationAttachment,
@@ -14,37 +16,53 @@ import {
 import type {
   EvaluationRecord,
   IngestPayload,
-  ReporterConfig,
+  JSONReporterConfig,
 } from "./types.js";
 
 /**
- * Custom Playwright reporter that sends evaluation results to the LLMAssert dashboard.
+ * Playwright reporter that writes LLM evaluation results to a local JSON file.
+ *
+ * Output format matches `IngestPayload` and can be replayed to `POST /api/ingest`
+ * with a Bearer token. For runs with >500 evaluations, the ingest endpoint accepts
+ * a maximum of 500 per request — split the file or use the HTTP reporter's built-in
+ * batching for large runs.
+ *
+ * Note: Playwright silently swallows errors thrown in reporter methods. When
+ * `onError: 'throw'` is set, the error is thrown but Playwright catches it —
+ * the test run still completes. Use `onError: 'warn'` (default) for visible feedback.
  *
  * Configure in playwright.config.ts:
  * ```ts
  * reporter: [
  *   ['list'],
- *   ['@llmassert/playwright/reporter', {
- *     apiKey: process.env.LLMASSERT_API_KEY,
- *     projectSlug: 'my-project',
+ *   ['@llmassert/playwright/json-reporter', {
+ *     outputFile: 'test-results/llmassert-results.json',
  *   }],
  * ]
  * ```
  */
-class LLMAssertReporter implements Reporter {
-  private config: ReporterConfig;
+class LLMAssertJSONReporter implements Reporter {
+  private config: Required<
+    Pick<JSONReporterConfig, "outputFile" | "projectSlug" | "onError">
+  > &
+    Pick<JSONReporterConfig, "metadata">;
   private evaluations: EvaluationRecord[] = [];
   private startedAt: string = "";
 
-  constructor(options: ReporterConfig) {
+  constructor(options: JSONReporterConfig = {}) {
     this.config = {
-      dashboardUrl: "https://llmassert.com",
-      batchSize: 50,
-      timeout: 10_000,
-      retries: 1,
-      onError: "warn",
-      ...options,
+      outputFile:
+        process.env.LLMASSERT_OUTPUT_FILE ??
+        options.outputFile ??
+        "test-results/llmassert-results.json",
+      projectSlug: options.projectSlug ?? "local",
+      onError: options.onError ?? "warn",
+      metadata: options.metadata,
     };
+  }
+
+  printsToStdio() {
+    return false;
   }
 
   onBegin(_config: FullConfig, _suite: Suite) {
@@ -79,11 +97,6 @@ class LLMAssertReporter implements Reporter {
   }
 
   async onEnd(_result: FullResult) {
-    if (!this.config.apiKey) {
-      // No API key — local-only mode, skip ingestion silently
-      return;
-    }
-
     if (this.evaluations.length === 0) {
       return;
     }
@@ -144,7 +157,14 @@ class LLMAssertReporter implements Reporter {
       })),
     };
 
-    // Log run cost summary
+    // Warn if replay would exceed ingest batch limit
+    if (this.evaluations.length > 500) {
+      console.error(
+        `[LLMAssert] Warning: ${this.evaluations.length} evaluations exceed the /api/ingest limit of 500 per request. Split the file or use the HTTP reporter for large runs.`,
+      );
+    }
+
+    // Log cost summary
     const totalCost = this.evaluations.reduce(
       (sum, e) => sum + (e.judgeCostUsd ?? 0),
       0,
@@ -158,47 +178,22 @@ class LLMAssertReporter implements Reporter {
       );
     }
 
-    // Send in batches
-    const batchSize = this.config.batchSize!;
-    for (let i = 0; i < payload.evaluations.length; i += batchSize) {
-      const batch: IngestPayload = {
-        ...payload,
-        evaluations: payload.evaluations.slice(i, i + batchSize),
-      };
-      await this.sendBatch(batch);
-    }
-  }
-
-  private async sendBatch(payload: IngestPayload): Promise<void> {
-    const url = `${this.config.dashboardUrl}/api/ingest`;
-    const retries = this.config.retries!;
-
-    for (let attempt = 0; attempt <= retries; attempt++) {
-      try {
-        const response = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${this.config.apiKey}`,
-          },
-          body: JSON.stringify(payload),
-          signal: AbortSignal.timeout(this.config.timeout!),
-        });
-
-        if (response.ok) return;
-
-        if (attempt === retries) {
-          this.handleError(
-            `Ingest failed with status ${response.status}: ${await response.text()}`,
-          );
-        }
-      } catch (error) {
-        if (attempt === retries) {
-          this.handleError(
-            `Ingest request failed: ${error instanceof Error ? error.message : String(error)}`,
-          );
-        }
-      }
+    // Write to file
+    const outputPath = resolve(this.config.outputFile);
+    try {
+      await mkdir(dirname(outputPath), { recursive: true });
+      await writeFile(outputPath, JSON.stringify(payload, null, 2) + "\n");
+      console.error(
+        `[LLMAssert] Results written to ${outputPath} (${this.evaluations.length} evaluations)`,
+      );
+    } catch (error) {
+      const code =
+        error instanceof Error && "code" in error
+          ? ` (${(error as NodeJS.ErrnoException).code})`
+          : "";
+      this.handleError(
+        `Failed to write results to ${outputPath}${code}: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
@@ -223,4 +218,4 @@ class LLMAssertReporter implements Reporter {
   }
 }
 
-export default LLMAssertReporter;
+export default LLMAssertJSONReporter;

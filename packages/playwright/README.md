@@ -34,6 +34,7 @@ test("chatbot response is grounded in docs", async () => {
   - [toSemanticMatch](#tosemanticmatch)
 - [Thresholds](#thresholds)
 - [Judge Configuration](#judge-configuration)
+- [JSON File Reporter](#json-file-reporter)
 - [Dashboard Reporter](#dashboard-reporter)
 - [CI Metadata](#ci-metadata)
 - [Contributing](#contributing)
@@ -353,6 +354,65 @@ test.describe("high-stakes evaluations", () => {
   });
 });
 ```
+
+## JSON File Reporter
+
+The JSON file reporter writes evaluation results to a local file in [IngestPayload](#dashboard-reporter) format. Use it for local development, CI artifact storage, or offline review — no dashboard account needed.
+
+```ts
+// playwright.config.ts
+reporter: [["list"], ["@llmassert/playwright/json-reporter"]];
+```
+
+Results are written to `test-results/llmassert-results.json` by default (already gitignored by Playwright).
+
+### JSONReporterConfig Fields
+
+| Field         | Type                            | Default                                 | Required | Description                                                    |
+| ------------- | ------------------------------- | --------------------------------------- | -------- | -------------------------------------------------------------- |
+| `outputFile`  | `string`                        | `'test-results/llmassert-results.json'` | No       | Output file path (resolved relative to `process.cwd()`)        |
+| `projectSlug` | `string`                        | `'local'`                               | No       | Project identifier included in output for replay compatibility |
+| `onError`     | `'warn' \| 'throw' \| 'silent'` | `'warn'`                                | No       | How to handle file write failures                              |
+| `metadata`    | `Record<string, unknown>`       | —                                       | No       | Arbitrary metadata attached to the run                         |
+
+### Environment Variable Override
+
+Set `LLMASSERT_OUTPUT_FILE` to override the output path from your CI config:
+
+```bash
+LLMASSERT_OUTPUT_FILE=artifacts/evals.json npx playwright test
+```
+
+### Composing with the Dashboard Reporter
+
+Use both reporters to get local output and dashboard ingestion in the same run:
+
+```ts
+reporter: [
+  ["list"],
+  [
+    "@llmassert/playwright/json-reporter",
+    { outputFile: "test-results/evals.json" },
+  ],
+  [
+    "@llmassert/playwright/reporter",
+    { apiKey: process.env.LLMASSERT_API_KEY, projectSlug: "my-app" },
+  ],
+];
+```
+
+### Replay to Dashboard
+
+The JSON output is directly compatible with the ingest API. Replay a saved file:
+
+```bash
+curl -X POST https://llmassert.com/api/ingest \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $LLMASSERT_API_KEY" \
+  -d @test-results/llmassert-results.json
+```
+
+> **Note:** The ingest API accepts a maximum of 500 evaluations per request. For runs exceeding this limit, the HTTP reporter automatically batches requests. The JSON reporter writes all evaluations to a single file — a warning is emitted for runs over 500.
 
 ## Dashboard Reporter
 
