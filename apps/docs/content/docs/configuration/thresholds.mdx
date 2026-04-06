@@ -1,0 +1,95 @@
+---
+title: Thresholds
+description: How scoring thresholds work and how to choose values per matcher
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+Every matcher uses a threshold to determine pass/fail. Scores range from 0.0 (worst) to 1.0 (best). A score at or above the threshold passes.
+
+## Threshold hierarchy
+
+Threshold sources (highest priority first):
+
+1. **Inline** — pass `{ threshold: 0.9 }` directly to the matcher
+2. **Remote** — configured per-assertion-type in the dashboard settings
+3. **Default** — 0.7 for all matchers
+
+```ts
+// Inline override — takes priority
+await expect(response).toBeGroundedIn(context, { threshold: 0.95 });
+
+// Uses remote threshold (if configured), otherwise default 0.7
+await expect(response).toBeGroundedIn(context);
+```
+
+The `thresholdSource` field in dashboard analytics shows which source was used (`inline`, `remote`, or `default`).
+
+## Per-matcher guidance
+
+### Groundedness (`toBeGroundedIn`)
+
+Score meaning: 1.0 = fully grounded in context, 0.0 = fabricated content.
+
+| Threshold | Strictness  | Typical use                       |
+| --------- | ----------- | --------------------------------- |
+| 0.95      | Very strict | Regulated content, legal, medical |
+| 0.85      | Strict      | Customer-facing FAQ bots          |
+| 0.70      | Default     | General chatbots                  |
+| 0.50      | Loose       | Creative assistants               |
+
+### PII detection (`toBeFreeOfPII`)
+
+<Callout type="warn">
+  PII scoring is inverted: 1.0 = clean (no PII), 0.0 = definite PII.
+</Callout>
+
+| Threshold | Strictness  | Typical use               |
+| --------- | ----------- | ------------------------- |
+| 0.95      | Very strict | Healthcare, finance, GDPR |
+| 0.80      | Strict      | Customer-facing responses |
+| 0.70      | Default     | Internal tools            |
+
+### Tone matching (`toMatchTone`)
+
+Score meaning: 1.0 = perfect tone match, 0.0 = opposite tone.
+
+| Threshold | Strictness | Typical use            |
+| --------- | ---------- | ---------------------- |
+| 0.90      | Strict     | Brand voice compliance |
+| 0.75      | Moderate   | General communications |
+| 0.70      | Default    | Chatbots               |
+
+### Format compliance (`toBeFormatCompliant`)
+
+Score meaning: 1.0 = fully compliant structure, 0.0 = wrong format.
+
+| Threshold | Strictness | Typical use                   |
+| --------- | ---------- | ----------------------------- |
+| 0.90      | Strict     | API responses, data pipelines |
+| 0.75      | Moderate   | Content generation            |
+| 0.70      | Default    | General format checking       |
+
+### Semantic matching (`toSemanticMatch`)
+
+Score meaning: 1.0 = identical meaning, 0.0 = completely unrelated.
+
+| Threshold | Strictness | Typical use                            |
+| --------- | ---------- | -------------------------------------- |
+| 0.90      | Strict     | Paraphrase detection, back-translation |
+| 0.80      | Moderate   | Summarization quality                  |
+| 0.70      | Default    | General similarity                     |
+| 0.50      | Loose      | Topic matching                         |
+
+## Tips for choosing thresholds
+
+<Callout type="info">
+  **Set thresholds with a margin.** LLM scores are inherently nondeterministic —
+  the same input can score 0.68 on one run and 0.72 on the next. If you want to
+  catch scores below 0.65, set your threshold to 0.70 to avoid flapping.
+</Callout>
+
+- Start with the default (0.7) and observe score distributions in the dashboard before tightening
+- Different matchers need different thresholds — a 0.9 for groundedness is very different from 0.9 for tone
+- Use inline overrides for specific high-stakes tests rather than raising the global default
+- The `reasoning` field in evaluation results explains why a score was given — use it to calibrate

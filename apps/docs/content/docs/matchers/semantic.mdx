@@ -1,0 +1,60 @@
+---
+title: toSemanticMatch
+description: Assert semantic similarity between candidate and reference text
+---
+
+Compares semantic similarity between candidate and reference text. Score 1.0 means identical meaning; 0.0 means completely unrelated. Useful for testing meaning-preserving transformations.
+
+## Usage
+
+```ts
+await expect(summary).toSemanticMatch(expectedSummary);
+await expect(translation).toSemanticMatch(reference, { threshold: 0.8 });
+```
+
+### Negation
+
+Verify output is semantically distinct:
+
+```ts
+await expect(newVersion).not.toSemanticMatch(oldVersion);
+```
+
+## Example — translation quality
+
+```ts
+import { test, expect } from "@llmassert/playwright";
+
+test("translation preserves meaning", async () => {
+  const translated = await ai.translate(originalEnglish, "es");
+  const backTranslated = await ai.translate(translated, "en");
+
+  await expect(backTranslated).toSemanticMatch(originalEnglish);
+});
+```
+
+## Example — summarization
+
+```ts
+test("summary captures key points", async () => {
+  const article = await loadArticle("product-launch");
+  const summary = await ai.summarize(article);
+
+  await expect(summary).toSemanticMatch(
+    "New product launched with three key features: speed, security, and ease of use",
+  );
+});
+```
+
+## Threshold guidance
+
+| Threshold | Meaning                                       | Use when                               |
+| --------- | --------------------------------------------- | -------------------------------------- |
+| 0.90      | Strict — nearly identical meaning             | Paraphrase detection, back-translation |
+| 0.80      | Tight — same core meaning, wording may differ | Summarization quality                  |
+| 0.70      | Default — captures main concepts              | General semantic similarity            |
+| 0.50      | Loose — shares some meaning                   | Topic matching, relevance checking     |
+
+## Dashboard type
+
+Appears as assertion type `fuzzy` in the dashboard.

@@ -1,0 +1,93 @@
+---
+title: First Test
+description: Write and run your first LLM assertion in under 3 minutes
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+This guide takes you from zero to a passing LLM assertion test in 4 steps. No configuration files needed.
+
+<Callout type="info">
+  **Prerequisites:** [Install
+  @llmassert/playwright](/getting-started/installation) and set your
+  `OPENAI_API_KEY`.
+</Callout>
+
+## 1. Create a test file
+
+Create `tests/llm.spec.ts`:
+
+```ts title="tests/llm.spec.ts"
+import { test, expect } from "@llmassert/playwright";
+
+test("response is grounded in source docs", async () => {
+  const response = "Our return window is 30 days from purchase.";
+  const context = "Returns accepted within 30 days. No restocking fee.";
+
+  await expect(response).toBeGroundedIn(context);
+});
+
+test("response contains no PII", async () => {
+  const response = "Your order #12345 has shipped.";
+
+  await expect(response).toBeFreeOfPII();
+});
+```
+
+<Callout type="info">
+  Import `test` and `expect` from `@llmassert/playwright`, not from
+  `@playwright/test`. This gives you the LLM assertion matchers. Your
+  `playwright.config.ts` still uses `defineConfig` from `@playwright/test` as
+  normal.
+</Callout>
+
+## 2. Run the test
+
+```bash
+pnpm exec playwright test tests/llm.spec.ts
+```
+
+You should see output like:
+
+```
+Running 2 tests using 1 worker
+
+  ✓ response is grounded in source docs (2.1s)
+  ✓ response contains no PII (1.8s)
+
+  2 passed (4.2s)
+```
+
+That's it. You just ran LLM-powered assertions using the same `expect()` API you already know from Playwright.
+
+## What just happened?
+
+1. **Your test strings were sent to GPT-5.4-mini** (the judge model) for evaluation
+2. **The judge returned a score** between 0.0 and 1.0 with reasoning
+3. **The score was compared against the default threshold** (0.7) to determine pass/fail
+4. **If the judge was unavailable**, the result would be `inconclusive` and the test would pass — provider outages never fail your CI
+
+## Try more matchers
+
+LLMAssert provides 5 assertion matchers:
+
+```ts
+// Check tone/sentiment
+await expect(response).toMatchTone("professional and helpful");
+
+// Validate output format
+await expect(response).toBeFormatCompliant(
+  "JSON object with fields: id (number), name (string)",
+);
+
+// Compare semantic meaning
+await expect(summary).toSemanticMatch(expectedSummary);
+```
+
+See the [Matchers](/matchers) section for full documentation on all 5 matchers.
+
+## Next steps
+
+- [Set up the dashboard reporter](/getting-started/dashboard-setup) — track results over time
+- [Explore all matchers](/matchers) — groundedness, PII, tone, format, semantic
+- [Configure the judge](/configuration/judge) — timeouts, fallback chain, models

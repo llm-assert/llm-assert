@@ -42,11 +42,11 @@ export async function HeroSection() {
               </Button>
               <Button size="lg" variant="outline" asChild>
                 <a
-                  href="https://github.com/llmassert"
+                  href="https://docs.llmassert.com/getting-started"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  View on GitHub
+                  Read the Docs
                 </a>
               </Button>
             </div>

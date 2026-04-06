@@ -1,0 +1,99 @@
+---
+title: Matcher API
+description: Complete API reference for all 5 assertion matchers
+---
+
+All matchers are available on the `expect` object when importing from `@llmassert/playwright`.
+
+```ts
+import { test, expect } from "@llmassert/playwright";
+```
+
+## toBeGroundedIn
+
+```ts
+await expect(text: string).toBeGroundedIn(
+  context: string,
+  options?: { threshold?: number; config?: JudgeConfig }
+): Promise<void>
+```
+
+Checks every claim in `text` against `context`. Dashboard type: `groundedness`.
+
+## toBeFreeOfPII
+
+```ts
+await expect(text: string).toBeFreeOfPII(
+  options?: { threshold?: number; config?: JudgeConfig }
+): Promise<void>
+```
+
+Scans for personally identifiable information. Inverted scale: 1.0 = no PII. Dashboard type: `pii`.
+
+## toMatchTone
+
+```ts
+await expect(text: string).toMatchTone(
+  descriptor: string,
+  options?: { threshold?: number; config?: JudgeConfig }
+): Promise<void>
+```
+
+Validates tone matches a natural-language description. Dashboard type: `sentiment`.
+
+## toBeFormatCompliant
+
+```ts
+await expect(text: string).toBeFormatCompliant(
+  schema: string,
+  options?: { threshold?: number; config?: JudgeConfig }
+): Promise<void>
+```
+
+Validates structural format against a natural-language description. Dashboard type: `schema`.
+
+## toSemanticMatch
+
+```ts
+await expect(text: string).toSemanticMatch(
+  expected: string,
+  options?: { threshold?: number; config?: JudgeConfig }
+): Promise<void>
+```
+
+Compares semantic similarity. Dashboard type: `fuzzy`.
+
+## Common options
+
+All matchers accept:
+
+| Option      | Type          | Description                                              |
+| ----------- | ------------- | -------------------------------------------------------- |
+| `threshold` | `number`      | Override the pass/fail threshold (0.0-1.0). Default: 0.7 |
+| `config`    | `JudgeConfig` | Override judge configuration for this assertion          |
+
+## Return value
+
+All matchers return `Promise<void>` and throw on failure (standard Playwright assertion behavior). The underlying result is:
+
+```ts
+interface AssertionResult {
+  pass: boolean;
+  score: number | null; // null if inconclusive
+  reasoning: string;
+}
+```
+
+## Negation
+
+All matchers support `.not`:
+
+```ts
+await expect(text).not.toBeGroundedIn(context);
+await expect(text).not.toBeFreeOfPII();
+await expect(text).not.toMatchTone("sarcastic");
+await expect(text).not.toBeFormatCompliant("JSON");
+await expect(text).not.toSemanticMatch(reference);
+```
+
+With `.not`, a score **below** the threshold passes.

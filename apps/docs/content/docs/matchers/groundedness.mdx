@@ -1,0 +1,56 @@
+---
+title: toBeGroundedIn
+description: Assert that a response is factually grounded in provided context
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+Catches hallucinations by checking every claim in the response against the provided context. Score 1.0 means fully grounded; 0.0 means fabricated.
+
+## Usage
+
+```ts
+await expect(response).toBeGroundedIn(context);
+await expect(response).toBeGroundedIn(context, { threshold: 0.9 });
+```
+
+### Negation
+
+Verify a response adds information beyond the context:
+
+```ts
+await expect(creativeResponse).not.toBeGroundedIn(context);
+```
+
+## Example — FAQ chatbot
+
+```ts
+import { test, expect } from "@llmassert/playwright";
+
+test("chatbot answers are grounded in FAQ", async () => {
+  const question = "Do you offer free shipping?";
+  const response = await chatbot.ask(question);
+  const faqDocs = await loadFAQ();
+
+  await expect(response).toBeGroundedIn(faqDocs);
+});
+```
+
+## Threshold guidance
+
+| Threshold | Meaning                                        | Use when                                      |
+| --------- | ---------------------------------------------- | --------------------------------------------- |
+| 0.95      | Strict — reject minor paraphrasing             | Regulated content, legal docs, medical advice |
+| 0.85      | Tight — accept rearrangement, reject additions | Customer-facing FAQ bots                      |
+| 0.70      | Default — allows reasonable inference          | General chatbots, internal tools              |
+| 0.50      | Permissive — accepts loose connections         | Creative writing, brainstorming assistants    |
+
+<Callout type="info">
+  The judge checks every factual claim against the source context. A response
+  that invents a single detail not in the context will score lower, even if the
+  rest is accurate.
+</Callout>
+
+## Dashboard type
+
+Appears as assertion type `groundedness` in the dashboard.

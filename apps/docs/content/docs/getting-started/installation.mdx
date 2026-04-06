@@ -1,0 +1,57 @@
+---
+title: Installation
+description: Install @llmassert/playwright and set up your judge API key
+---
+
+## Install the package
+
+Requires [`@playwright/test`](https://www.npmjs.com/package/@playwright/test) `>=1.40.0` as a peer dependency.
+
+```npm
+npm i -D @llmassert/playwright
+```
+
+## Set your judge API key
+
+LLMAssert uses an LLM to evaluate your assertions. Set your OpenAI API key:
+
+```bash
+export OPENAI_API_KEY="sk-your-openai-key"
+```
+
+That's it. You're ready to [write your first test](/getting-started/first-test).
+
+## Optional: Add Anthropic fallback
+
+If the primary judge (GPT-5.4-mini) is unavailable, LLMAssert can fall back to Claude Haiku. Install the Anthropic SDK and set the key:
+
+```npm
+npm i -D @anthropic-ai/sdk
+```
+
+```bash
+export ANTHROPIC_API_KEY="sk-ant-your-anthropic-key"
+```
+
+The `@anthropic-ai/sdk` peer dependency is optional. Without it, the fallback chain skips Claude and goes directly to `inconclusive` if the primary model fails.
+
+## Environment variables
+
+| Variable            | Required     | Description                                                       |
+| ------------------- | ------------ | ----------------------------------------------------------------- |
+| `OPENAI_API_KEY`    | At least one | API key for GPT-5.4-mini (primary judge)                          |
+| `ANTHROPIC_API_KEY` | At least one | API key for Claude Haiku (fallback). Requires `@anthropic-ai/sdk` |
+
+At least one API key must be set. If neither is provided, all assertions return `inconclusive`.
+
+## Compatibility
+
+| Requirement   | Version                    |
+| ------------- | -------------------------- |
+| Node.js       | >= 20                      |
+| Playwright    | >= 1.40.0                  |
+| Module format | CJS and ESM both supported |
+
+## Next steps
+
+- [Write your first test](/getting-started/first-test) — run a passing LLM assertion in under 3 minutes

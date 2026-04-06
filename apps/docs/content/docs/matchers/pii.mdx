@@ -1,0 +1,66 @@
+---
+title: toBeFreeOfPII
+description: Assert that text contains no personally identifiable information
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+Scans for personally identifiable information — names, emails, phone numbers, addresses, SSNs, credit card numbers, dates of birth, and IP addresses.
+
+<Callout type="warn">
+  **PII scoring is inverted:** 1.0 = no PII detected, 0.0 = definite PII
+  present. A threshold of 0.7 means "pass unless there's moderate-to-strong PII
+  evidence."
+</Callout>
+
+## Usage
+
+```ts
+await expect(response).toBeFreeOfPII();
+await expect(response).toBeFreeOfPII({ threshold: 0.9 });
+```
+
+### Negation
+
+Verify a response correctly includes user details:
+
+```ts
+await expect(profileSummary).not.toBeFreeOfPII();
+```
+
+## Example — customer service bot
+
+```ts
+import { test, expect } from "@llmassert/playwright";
+
+test("support response does not leak customer PII", async () => {
+  const response = await supportBot.reply("What is my account balance?");
+
+  await expect(response).toBeFreeOfPII();
+});
+```
+
+## Threshold guidance
+
+| Threshold | Meaning                                     | Use when                               |
+| --------- | ------------------------------------------- | -------------------------------------- |
+| 0.95      | Strict — flag anything resembling PII       | Healthcare, finance, GDPR compliance   |
+| 0.80      | Balanced — catch clear PII, allow ambiguous | Customer-facing responses              |
+| 0.70      | Default — tolerate some ambiguity           | Internal tools, non-sensitive contexts |
+
+## What counts as PII?
+
+The judge checks for:
+
+- Full names (not generic placeholders like "John Doe")
+- Email addresses
+- Phone numbers
+- Physical addresses
+- SSN / national ID numbers
+- Credit card numbers
+- Dates of birth tied to individuals
+- IP addresses
+
+## Dashboard type
+
+Appears as assertion type `pii` in the dashboard.

@@ -1,0 +1,118 @@
+---
+title: Reporters
+description: Dashboard reporter and JSON file reporter configuration
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+LLMAssert provides two reporters. Use either or both together.
+
+## Dashboard reporter
+
+Sends results to [llmassert.com](https://llmassert.com) for trend analysis and team visibility.
+
+```ts title="playwright.config.ts"
+reporter: [
+  ["list"],
+  [
+    "@llmassert/playwright/reporter",
+    {
+      projectSlug: "my-project",
+      apiKey: process.env.LLMASSERT_API_KEY,
+    },
+  ],
+],
+```
+
+### ReporterConfig fields
+
+| Field                   | Type                            | Default                   | Required | Description                                 |
+| ----------------------- | ------------------------------- | ------------------------- | -------- | ------------------------------------------- |
+| `projectSlug`           | `string`                        | —                         | Yes      | Project identifier on the dashboard         |
+| `apiKey`                | `string`                        | —                         | No       | Dashboard API key. Omit for local-only mode |
+| `dashboardUrl`          | `string`                        | `'https://llmassert.com'` | No       | Dashboard URL                               |
+| `batchSize`             | `number`                        | `50`                      | No       | Evaluations per ingest request              |
+| `timeout`               | `number`                        | `10000`                   | No       | Ingest request timeout in ms                |
+| `retries`               | `number`                        | `1`                       | No       | Retry count on network failure              |
+| `onError`               | `'warn' \| 'throw' \| 'silent'` | `'warn'`                  | No       | How to handle ingest failures               |
+| `onThresholdFetchError` | `'warn' \| 'throw' \| 'silent'` | `'warn'`                  | No       | How to handle threshold fetch failures      |
+| `metadata`              | `Record<string, unknown>`       | —                         | No       | Arbitrary metadata attached to the run      |
+
+### Local-only mode
+
+Omit `apiKey` to run without dashboard integration. No warning is emitted.
+
+## JSON file reporter
+
+Writes results to a local file. Use for local development, CI artifact storage, or offline review.
+
+```ts title="playwright.config.ts"
+reporter: [
+  ["list"],
+  ["@llmassert/playwright/json-reporter"],
+],
+```
+
+Results are written to `test-results/llmassert-results.json` by default (already gitignored by Playwright).
+
+### JSONReporterConfig fields
+
+| Field         | Type                            | Default                                 | Description                       |
+| ------------- | ------------------------------- | --------------------------------------- | --------------------------------- |
+| `outputFile`  | `string`                        | `'test-results/llmassert-results.json'` | Output file path                  |
+| `projectSlug` | `string`                        | `'local'`                               | Project identifier in output      |
+| `onError`     | `'warn' \| 'throw' \| 'silent'` | `'warn'`                                | How to handle file write failures |
+| `metadata`    | `Record<string, unknown>`       | —                                       | Arbitrary metadata                |
+
+### Environment variable override
+
+```bash
+LLMASSERT_OUTPUT_FILE=artifacts/evals.json npx playwright test
+```
+
+## Using both reporters
+
+Get local output and dashboard ingestion in the same run:
+
+```ts title="playwright.config.ts"
+reporter: [
+  ["list"],
+  [
+    "@llmassert/playwright/json-reporter",
+    { outputFile: "test-results/evals.json" },
+  ],
+  [
+    "@llmassert/playwright/reporter",
+    { apiKey: process.env.LLMASSERT_API_KEY, projectSlug: "my-app" },
+  ],
+],
+```
+
+## Replay JSON to dashboard
+
+The JSON output is compatible with the ingest API. Replay a saved file:
+
+```bash
+curl -X POST https://llmassert.com/api/ingest \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $LLMASSERT_API_KEY" \
+  -d @test-results/llmassert-results.json
+```
+
+<Callout type="info">
+  The ingest API accepts a maximum of 500 evaluations per request. The dashboard
+  reporter automatically batches larger runs.
+</Callout>
+
+## CI metadata
+
+The reporter auto-detects your CI provider and attaches metadata to each run.
+
+| Field       | GitHub Actions    | Other CI providers        |
+| ----------- | ----------------- | ------------------------- |
+| CI provider | Auto-detected     | Auto-detected             |
+| Branch      | `GITHUB_REF_NAME` | Set `BRANCH_NAME` env var |
+| Commit SHA  | `GITHUB_SHA`      | Set `COMMIT_SHA` env var  |
+| Run URL     | Auto-generated    | Not available             |
+
+For non-GitHub CI, set `BRANCH_NAME` and `COMMIT_SHA` in your CI configuration.

@@ -1,0 +1,25 @@
+---
+title: LLMAssert
+description: LLM-powered assertion matchers for Playwright
+---
+
+# LLMAssert
+
+Test your AI outputs for hallucinations, PII leaks, tone, format compliance, and semantic accuracy — using matchers you already know from Playwright.
+
+```ts
+import { test, expect } from "@llmassert/playwright";
+
+test("response is grounded in docs", async () => {
+  const response = "Our return window is 30 days from purchase.";
+  await expect(response).toBeGroundedIn("Returns accepted within 30 days.");
+});
+```
+
+## Quick Links
+
+- [Getting Started](/getting-started/installation) — Install and run your first test in under 5 minutes
+- [Matchers](/matchers) — All 5 assertion matchers with examples
+- [Configuration](/configuration/judge) — Judge models, reporters, and thresholds
+- [Guides](/guides/ci-github-actions) — CI integration and best practices
+- [API Reference](/api-reference/matchers) — Complete API documentation

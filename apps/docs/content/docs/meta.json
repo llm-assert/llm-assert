@@ -1,0 +1,12 @@
+{
+  "title": "LLMAssert",
+  "root": true,
+  "pages": [
+    "index",
+    "getting-started",
+    "matchers",
+    "configuration",
+    "guides",
+    "api-reference"
+  ]
+}

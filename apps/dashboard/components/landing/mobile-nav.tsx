@@ -34,6 +34,10 @@ export const MobileNav = memo(function MobileNav({
               key={link.href}
               href={link.href}
               onClick={() => setOpen(false)}
+              {...(link.href.startsWith("http") && {
+                target: "_blank",
+                rel: "noopener noreferrer",
+              })}
               className="text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
               {link.label}
