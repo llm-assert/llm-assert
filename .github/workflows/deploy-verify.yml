@@ -37,7 +37,9 @@ jobs:
   # ─── Tier 1 + 2: Health Gate & Unauthenticated E2E ──────────────────
   # Runs on ALL successful deployments (preview + production)
   verify:
-    if: github.event.deployment_status.state == 'success'
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      contains(github.event.deployment_status.target_url, 'llmassert-dashboard')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -136,7 +138,8 @@ jobs:
   verify-authenticated:
     if: >-
       github.event.deployment_status.state == 'success' &&
-      github.event.deployment_status.environment == 'Production'
+      github.event.deployment_status.environment == 'Production' &&
+      contains(github.event.deployment_status.target_url, 'llmassert-dashboard')
     needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 10
