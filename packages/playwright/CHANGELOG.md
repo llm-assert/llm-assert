@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.3.0
+
+### Minor Changes
+
+- [#63](https://github.com/llm-assert/llm-assert/pull/63) [`e5590c2`](https://github.com/llm-assert/llm-assert/commit/e5590c237c5bce42d681315340390008f343ecde) Thanks [@Cporter97](https://github.com/Cporter97)! - Add local-only JSON file reporter for evaluation results
+
+  New `@llmassert/playwright/json-reporter` entry point that writes LLM evaluation results to a local JSON file in IngestPayload format. Supports replay to the dashboard API, CI artifact workflows, and offline review.
+
+  Configure in `playwright.config.ts`:
+
+  ```ts
+  reporter: [
+    ["list"],
+    [
+      "@llmassert/playwright/json-reporter",
+      { outputFile: "test-results/evals.json" },
+    ],
+  ];
+  ```
+
 ## 0.2.3
 
 ### Patch Changes
