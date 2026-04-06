@@ -16,6 +16,7 @@ export type {
   AssertionResult,
   HardenedResult,
   JudgeConfig,
+  JSONReporterConfig,
   ReporterConfig,
   EvaluationRecord,
   LLMAssertFixture,
