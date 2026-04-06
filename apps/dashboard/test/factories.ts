@@ -37,6 +37,9 @@ const EVALUATION_DEFAULTS: Evaluation = {
   judge_cost_usd: 0.0003,
   fallback_used: false,
   threshold: 0.7,
+  input_truncated: false,
+  injection_detected: false,
+  rate_limited: false,
 };
 
 export function buildEvaluation(overrides?: Partial<Evaluation>): Evaluation {

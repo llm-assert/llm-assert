@@ -49,7 +49,7 @@ export async function getEvaluations(
   let query = supabase
     .from("evaluations")
     .select(
-      "id, test_run_id, assertion_type, test_name, test_file, input_text, context_text, expected_value, result, score, reasoning, judge_model, judge_latency_ms, judge_cost_usd, fallback_used, threshold, created_at",
+      "id, test_run_id, assertion_type, test_name, test_file, input_text, context_text, expected_value, result, score, reasoning, judge_model, judge_latency_ms, judge_cost_usd, fallback_used, threshold, input_truncated, injection_detected, rate_limited, judge_backoff_ms, failure_reason, created_at",
       { count: "exact" },
     )
     .eq("test_run_id", runId)
