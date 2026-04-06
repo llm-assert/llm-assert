@@ -19,32 +19,36 @@ export function SubscriptionStatus({
 }: {
   subscription: SubscriptionState | null;
 }) {
-  const planDisplay = getPlanDisplay(subscription?.plan ?? "free");
+  const currentPlan = subscription?.plan ?? "free";
+  const planDisplay = getPlanDisplay(currentPlan);
+  const isFree = currentPlan === "free";
   const status = subscription?.status ?? null;
-  const config = status ? statusConfig[status] : null;
+  const config = status && !isFree ? statusConfig[status] : null;
 
   return (
     <div className="space-y-1">
       <div className="flex items-center gap-2">
         <h2 className="text-xl font-semibold">{planDisplay.label}</h2>
         {config && <Badge variant={config.variant}>{config.label}</Badge>}
-        {!subscription && <Badge variant="secondary">Free</Badge>}
+        {isFree && <Badge variant="secondary">Free</Badge>}
       </div>
-      {subscription?.status === "active" && subscription.currentPeriodEnd && (
-        <p className="text-sm text-muted-foreground">
-          Renews{" "}
-          {new Date(subscription.currentPeriodEnd).toLocaleDateString(
-            undefined,
-            { month: "long", day: "numeric", year: "numeric" },
-          )}
-        </p>
-      )}
-      {!subscription && (
+      {subscription?.status === "active" &&
+        !isFree &&
+        subscription.currentPeriodEnd && (
+          <p className="text-sm text-muted-foreground">
+            Renews{" "}
+            {new Date(subscription.currentPeriodEnd).toLocaleDateString(
+              undefined,
+              { month: "long", day: "numeric", year: "numeric" },
+            )}
+          </p>
+        )}
+      {isFree && (
         <p className="text-sm text-muted-foreground">
           Upgrade to unlock more evaluations and projects.
         </p>
       )}
-      {subscription?.status === "canceled" && (
+      {subscription?.status === "canceled" && !isFree && (
         <p className="text-sm text-muted-foreground">
           Your subscription has been canceled. Subscribe again to continue using
           paid features.

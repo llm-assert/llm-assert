@@ -36,7 +36,7 @@ export async function POST(request: Request): Promise<Response> {
     .eq("user_id", user.id)
     .single();
 
-  if (subscription?.status === "active") {
+  if (subscription?.status === "active" && subscription?.stripe_customer_id) {
     return Response.json(
       {
         error:

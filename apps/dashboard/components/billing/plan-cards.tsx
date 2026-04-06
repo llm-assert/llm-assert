@@ -65,9 +65,13 @@ export function PlanCards({
               </ul>
             </CardContent>
             <CardFooter>
-              {isCurrent && subscriptionStatus === "active" ? (
+              {isCurrent &&
+              subscriptionStatus === "active" &&
+              currentPlan !== "free" ? (
                 <BillingActions action="portal" />
-              ) : !isCurrent && subscriptionStatus === "active" ? (
+              ) : !isCurrent &&
+                subscriptionStatus === "active" &&
+                currentPlan !== "free" ? (
                 <span className="text-xs text-muted-foreground">
                   Manage your plan to switch tiers
                 </span>
