@@ -3,15 +3,15 @@
 LLM-as-judge assertion matchers for [Playwright](https://playwright.dev). Test your AI outputs for hallucinations, PII leaks, tone, format compliance, and semantic accuracy.
 
 ```ts
-import { test, expect } from '@llmassert/playwright';
+import { test, expect } from "@llmassert/playwright";
 
-test('chatbot response is grounded in docs', async () => {
-  const response = 'Our return window is 30 days from purchase.';
-  const context = 'Returns accepted within 30 days. No restocking fee.';
+test("chatbot response is grounded in docs", async () => {
+  const response = "Our return window is 30 days from purchase.";
+  const context = "Returns accepted within 30 days. No restocking fee.";
 
   await expect(response).toBeGroundedIn(context);
   await expect(response).toBeFreeOfPII();
-  await expect(response).toMatchTone('professional and helpful');
+  await expect(response).toMatchTone("professional and helpful");
 });
 ```
 
@@ -69,6 +69,7 @@ The `@anthropic-ai/sdk` peer dependency is optional. Without it, the fallback ch
 > **Important:** Import `test` and `expect` from `@llmassert/playwright`, not from `@playwright/test`. This gives you the LLM assertion matchers and the worker-scoped judge fixture. Your `playwright.config.ts` still uses `defineConfig` from `@playwright/test` as normal.
 >
 > The package provides three import paths:
+>
 > - `@llmassert/playwright` — `test`, `expect`, types, and `JudgeClient`
 > - `@llmassert/playwright/reporter` — dashboard reporter for `playwright.config.ts`
 > - `@llmassert/playwright/fixtures` — fixture-extended `test` with judge lifecycle, without custom `expect` matchers (advanced)
@@ -76,17 +77,17 @@ The `@anthropic-ai/sdk` peer dependency is optional. Without it, the fallback ch
 **1. Create a test file** (`tests/llm.spec.ts`):
 
 ```ts
-import { test, expect } from '@llmassert/playwright';
+import { test, expect } from "@llmassert/playwright";
 
-test('response is grounded in source docs', async () => {
-  const response = 'Our return window is 30 days from purchase.';
-  const context = 'Returns accepted within 30 days. No restocking fee.';
+test("response is grounded in source docs", async () => {
+  const response = "Our return window is 30 days from purchase.";
+  const context = "Returns accepted within 30 days. No restocking fee.";
 
   await expect(response).toBeGroundedIn(context);
 });
 
-test('response contains no PII', async () => {
-  const response = 'Your order #12345 has shipped.';
+test("response contains no PII", async () => {
+  const response = "Your order #12345 has shipped.";
 
   await expect(response).toBeFreeOfPII();
 });
@@ -95,15 +96,18 @@ test('response contains no PII', async () => {
 **2. Configure the reporter** (`playwright.config.ts`):
 
 ```ts
-import { defineConfig } from '@playwright/test';
+import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   reporter: [
-    ['list'],
-    ['@llmassert/playwright/reporter', {
-      projectSlug: 'my-project',
-      apiKey: process.env.LLMASSERT_API_KEY,
-    }],
+    ["list"],
+    [
+      "@llmassert/playwright/reporter",
+      {
+        projectSlug: "my-project",
+        apiKey: process.env.LLMASSERT_API_KEY,
+      },
+    ],
   ],
 });
 ```
@@ -134,8 +138,8 @@ await expect(creativeResponse).not.toBeGroundedIn(context);
 **Example — FAQ chatbot:**
 
 ```ts
-test('chatbot answers are grounded in FAQ', async () => {
-  const question = 'Do you offer free shipping?';
+test("chatbot answers are grounded in FAQ", async () => {
+  const question = "Do you offer free shipping?";
   const response = await chatbot.ask(question);
   const faqDocs = await loadFAQ();
 
@@ -158,8 +162,8 @@ await expect(profileSummary).not.toBeFreeOfPII();
 **Example — customer service bot:**
 
 ```ts
-test('support response does not leak customer PII', async () => {
-  const response = await supportBot.reply('What is my account balance?');
+test("support response does not leak customer PII", async () => {
+  const response = await supportBot.reply("What is my account balance?");
 
   await expect(response).toBeFreeOfPII();
 });
@@ -172,20 +176,20 @@ Validates that text matches a described tone or sentiment. The descriptor is a n
 > Results appear as assertion type `sentiment` in the dashboard.
 
 ```ts
-await expect(response).toMatchTone('professional and helpful');
-await expect(response).toMatchTone('empathetic', { threshold: 0.8 });
+await expect(response).toMatchTone("professional and helpful");
+await expect(response).toMatchTone("empathetic", { threshold: 0.8 });
 
 // Negation: verify response avoids a specific tone
-await expect(response).not.toMatchTone('sarcastic or dismissive');
+await expect(response).not.toMatchTone("sarcastic or dismissive");
 ```
 
 **Example — brand voice check:**
 
 ```ts
-test('support replies maintain professional tone', async () => {
-  const response = await supportBot.reply('This product is terrible!');
+test("support replies maintain professional tone", async () => {
+  const response = await supportBot.reply("This product is terrible!");
 
-  await expect(response).toMatchTone('empathetic and solution-oriented');
+  await expect(response).toMatchTone("empathetic and solution-oriented");
 });
 ```
 
@@ -195,21 +199,21 @@ Validates that text conforms to a described structural format. The `schema` para
 
 ```ts
 await expect(response).toBeFormatCompliant(
-  'JSON object with required fields: id (number), name (string), tags (array of strings)'
+  "JSON object with required fields: id (number), name (string), tags (array of strings)",
 );
 
 // Negation: verify free-form output
-await expect(response).not.toBeFormatCompliant('numbered list');
+await expect(response).not.toBeFormatCompliant("numbered list");
 ```
 
 **Example — structured API response:**
 
 ```ts
-test('AI generates valid product descriptions', async () => {
+test("AI generates valid product descriptions", async () => {
   const description = await ai.generateProductDescription(product);
 
   await expect(description).toBeFormatCompliant(
-    'Three paragraphs: overview, key features as bullet list, call to action'
+    "Three paragraphs: overview, key features as bullet list, call to action",
   );
 });
 ```
@@ -229,9 +233,9 @@ await expect(newVersion).not.toSemanticMatch(oldVersion);
 **Example — translation quality:**
 
 ```ts
-test('translation preserves meaning', async () => {
-  const translated = await ai.translate(originalEnglish, 'es');
-  const backTranslated = await ai.translate(translated, 'en');
+test("translation preserves meaning", async () => {
+  const translated = await ai.translate(originalEnglish, "es");
+  const backTranslated = await ai.translate(translated, "en");
 
   await expect(backTranslated).toSemanticMatch(originalEnglish);
 });
@@ -281,9 +285,9 @@ Provider outages or timeouts result in `inconclusive` (score: `null`) — the te
 
 ### Environment Variables
 
-| Variable | Required | Description |
-| --- | --- | --- |
-| `OPENAI_API_KEY` | At least one | API key for GPT-5.4-mini (primary judge) |
+| Variable            | Required     | Description                                                                        |
+| ------------------- | ------------ | ---------------------------------------------------------------------------------- |
+| `OPENAI_API_KEY`    | At least one | API key for GPT-5.4-mini (primary judge)                                           |
 | `ANTHROPIC_API_KEY` | At least one | API key for Claude Haiku (fallback judge). Requires `@anthropic-ai/sdk` installed. |
 
 At least one API key must be set. If neither is provided, all assertions return `inconclusive`.
@@ -292,38 +296,41 @@ At least one API key must be set. If neither is provided, all assertions return 
 
 All fields are optional. Defaults are shown below.
 
-| Field | Type | Default | Description |
-| --- | --- | --- | --- |
-| `primaryModel` | `string` | `'gpt-5.4-mini'` | Primary judge model |
-| `fallbackModel` | `string` | `'claude-3-5-haiku-20241022'` | Fallback judge model |
-| `timeout` | `number` | `10000` | Timeout in ms. Exceeded → `inconclusive`, not fail |
-| `openaiApiKey` | `string` | `process.env.OPENAI_API_KEY` | OpenAI API key |
-| `anthropicApiKey` | `string` | `process.env.ANTHROPIC_API_KEY` | Anthropic API key |
-| `maxInputChars` | `number` | `500000` | Max combined input character length |
-| `inputHandling` | `'reject' \| 'truncate'` | `'reject'` | How to handle oversized inputs |
-| `pricing` | `Record<string, { inputPerToken, outputPerToken }>` | Built-in table | Custom per-token pricing overrides (USD) |
-| `rateLimit` | `{ requestsPerMinute, burstCapacity }` | Disabled | Per-worker rate limiting for judge API calls |
+| Field             | Type                                                | Default                         | Description                                        |
+| ----------------- | --------------------------------------------------- | ------------------------------- | -------------------------------------------------- |
+| `primaryModel`    | `string`                                            | `'gpt-5.4-mini'`                | Primary judge model                                |
+| `fallbackModel`   | `string`                                            | `'claude-3-5-haiku-20241022'`   | Fallback judge model                               |
+| `timeout`         | `number`                                            | `10000`                         | Timeout in ms. Exceeded → `inconclusive`, not fail |
+| `openaiApiKey`    | `string`                                            | `process.env.OPENAI_API_KEY`    | OpenAI API key                                     |
+| `anthropicApiKey` | `string`                                            | `process.env.ANTHROPIC_API_KEY` | Anthropic API key                                  |
+| `maxInputChars`   | `number`                                            | `500000`                        | Max combined input character length                |
+| `inputHandling`   | `'reject' \| 'truncate'`                            | `'reject'`                      | How to handle oversized inputs                     |
+| `pricing`         | `Record<string, { inputPerToken, outputPerToken }>` | Built-in table                  | Custom per-token pricing overrides (USD)           |
+| `rateLimit`       | `{ requestsPerMinute, burstCapacity }`              | Disabled                        | Per-worker rate limiting for judge API calls       |
 
 ### Global Configuration
 
 Add `judgeConfig` to the `use` block in your `playwright.config.ts` alongside your reporter configuration:
 
 ```ts
-import { defineConfig } from '@playwright/test';
+import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   use: {
     judgeConfig: {
-      primaryModel: 'gpt-5.4-mini',
+      primaryModel: "gpt-5.4-mini",
       timeout: 5000,
     },
   },
   reporter: [
-    ['list'],
-    ['@llmassert/playwright/reporter', {
-      projectSlug: 'my-project',
-      apiKey: process.env.LLMASSERT_API_KEY,
-    }],
+    ["list"],
+    [
+      "@llmassert/playwright/reporter",
+      {
+        projectSlug: "my-project",
+        apiKey: process.env.LLMASSERT_API_KEY,
+      },
+    ],
   ],
 });
 ```
@@ -333,14 +340,14 @@ export default defineConfig({
 Override judge settings for a specific `describe` block with `test.use()`:
 
 ```ts
-import { test, expect } from '@llmassert/playwright';
+import { test, expect } from "@llmassert/playwright";
 
-test.describe('high-stakes evaluations', () => {
+test.describe("high-stakes evaluations", () => {
   test.use({ judgeConfig: { timeout: 15000 } });
 
-  test('critical response is grounded', async () => {
-    const response = 'We process refunds within 5 business days.';
-    const context = 'Refunds are processed in 3-5 business days.';
+  test("critical response is grounded", async () => {
+    const response = "We process refunds within 5 business days.";
+    const context = "Refunds are processed in 3-5 business days.";
 
     await expect(response).toBeGroundedIn(context, { threshold: 0.95 });
   });
@@ -355,17 +362,17 @@ Add the reporter to the `reporter` array in your `playwright.config.ts` (see [Gl
 
 ### ReporterConfig Fields
 
-| Field | Type | Default | Required | Description |
-| --- | --- | --- | --- | --- |
-| `projectSlug` | `string` | — | Yes | Project identifier on the dashboard |
-| `apiKey` | `string` | — | No | Dashboard API key. Omit for local-only mode (no ingest, no warning) |
-| `dashboardUrl` | `string` | `'https://llmassert.com'` | No | Dashboard URL |
-| `batchSize` | `number` | `50` | No | Evaluations per ingest request. Larger runs send multiple requests sharing the same `run_id` |
-| `timeout` | `number` | `10000` | No | Ingest request timeout in ms |
-| `retries` | `number` | `1` | No | Ingest POST retry count on network failure (does not affect judge evaluation retries) |
-| `onError` | `'warn' \| 'throw' \| 'silent'` | `'warn'` | No | How to handle ingest failures. Default `'warn'` keeps your test suite unblocked |
-| `onThresholdFetchError` | `'warn' \| 'throw' \| 'silent'` | `'warn'` | No | How to handle remote threshold fetch failures (separate from `onError`) |
-| `metadata` | `Record<string, unknown>` | — | No | Arbitrary metadata attached to the run (not per-evaluation) |
+| Field                   | Type                            | Default                   | Required | Description                                                                                  |
+| ----------------------- | ------------------------------- | ------------------------- | -------- | -------------------------------------------------------------------------------------------- |
+| `projectSlug`           | `string`                        | —                         | Yes      | Project identifier on the dashboard                                                          |
+| `apiKey`                | `string`                        | —                         | No       | Dashboard API key. Omit for local-only mode (no ingest, no warning)                          |
+| `dashboardUrl`          | `string`                        | `'https://llmassert.com'` | No       | Dashboard URL                                                                                |
+| `batchSize`             | `number`                        | `50`                      | No       | Evaluations per ingest request. Larger runs send multiple requests sharing the same `run_id` |
+| `timeout`               | `number`                        | `10000`                   | No       | Ingest request timeout in ms                                                                 |
+| `retries`               | `number`                        | `1`                       | No       | Ingest POST retry count on network failure (does not affect judge evaluation retries)        |
+| `onError`               | `'warn' \| 'throw' \| 'silent'` | `'warn'`                  | No       | How to handle ingest failures. Default `'warn'` keeps your test suite unblocked              |
+| `onThresholdFetchError` | `'warn' \| 'throw' \| 'silent'` | `'warn'`                  | No       | How to handle remote threshold fetch failures (separate from `onError`)                      |
+| `metadata`              | `Record<string, unknown>`       | —                         | No       | Arbitrary metadata attached to the run (not per-evaluation)                                  |
 
 ### Local-only Mode
 
@@ -382,12 +389,12 @@ Omit `apiKey` to run without dashboard integration. Evaluations are collected an
 
 The reporter auto-detects your CI provider and attaches metadata to each run.
 
-| Field | GitHub Actions | GitLab CI / CircleCI / Jenkins |
-| --- | --- | --- |
-| CI provider | Auto-detected | Auto-detected |
-| Branch | `GITHUB_REF_NAME` | Set `BRANCH_NAME` env var |
-| Commit SHA | `GITHUB_SHA` | Set `COMMIT_SHA` env var |
-| Run URL | Auto-generated | Not available |
+| Field       | GitHub Actions    | GitLab CI / CircleCI / Jenkins |
+| ----------- | ----------------- | ------------------------------ |
+| CI provider | Auto-detected     | Auto-detected                  |
+| Branch      | `GITHUB_REF_NAME` | Set `BRANCH_NAME` env var      |
+| Commit SHA  | `GITHUB_SHA`      | Set `COMMIT_SHA` env var       |
+| Run URL     | Auto-generated    | Not available                  |
 
 For non-GitHub CI providers, set `BRANCH_NAME` and `COMMIT_SHA` environment variables in your CI configuration to populate branch and commit metadata in the dashboard.
 
