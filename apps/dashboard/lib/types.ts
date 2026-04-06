@@ -17,5 +17,10 @@ export type Evaluation = {
   judge_cost_usd: number | null;
   fallback_used: boolean;
   threshold: number | null;
+  input_truncated: boolean;
+  injection_detected: boolean;
+  rate_limited: boolean;
+  judge_backoff_ms?: number | null;
+  failure_reason?: string | null;
   created_at: string;
 };

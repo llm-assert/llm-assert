@@ -9,7 +9,7 @@ export const getEvaluation = cache(async (evalId: string, runId: string) => {
   const { data: evaluation, error } = await supabase
     .from("evaluations")
     .select(
-      "id, test_run_id, assertion_type, test_name, test_file, input_text, context_text, expected_value, result, score, reasoning, judge_model, judge_latency_ms, judge_cost_usd, fallback_used, threshold, created_at",
+      "id, test_run_id, assertion_type, test_name, test_file, input_text, context_text, expected_value, result, score, reasoning, judge_model, judge_latency_ms, judge_cost_usd, fallback_used, threshold, input_truncated, injection_detected, rate_limited, judge_backoff_ms, failure_reason, created_at",
     )
     .eq("id", evalId)
     .eq("test_run_id", runId)
