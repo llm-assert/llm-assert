@@ -19,6 +19,8 @@ export default async function ApiKeysPage() {
     .select(
       "id, key_prefix, label, last_used_at, created_at, revoked_at, project_id, projects(name, slug)",
     )
+    // RLS perf hint — not a security boundary (see CLAUDE.md)
+    .eq("user_id", user.id)
     .order("revoked_at", { ascending: true, nullsFirst: true })
     .order("created_at", { ascending: false });
 
@@ -26,6 +28,8 @@ export default async function ApiKeysPage() {
   const { data: projects } = await supabase
     .from("projects")
     .select("id, name, slug")
+    // RLS perf hint — not a security boundary (see CLAUDE.md)
+    .eq("user_id", user.id)
     .order("name");
 
   return (

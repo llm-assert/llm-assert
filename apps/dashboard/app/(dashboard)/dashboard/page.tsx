@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { CreateProjectDialog } from "@/components/create-project-dialog";
@@ -17,10 +18,13 @@ export default async function ProjectsPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  if (!user) redirect("/sign-in");
 
   const { data: projects, error: projectsError } = await supabase
     .from("projects")
     .select("id, name, slug, description")
+    // RLS perf hint — not a security boundary (see CLAUDE.md)
+    .eq("user_id", user.id)
     .order("updated_at", { ascending: false });
 
   if (projectsError) {
@@ -38,6 +42,8 @@ export default async function ProjectsPage() {
         "project_id, started_at, branch, total_evaluations, passed, failed, inconclusive",
       )
       .in("project_id", projectIds)
+      // RLS perf hint — not a security boundary (see CLAUDE.md)
+      .eq("user_id", user.id)
       .order("started_at", { ascending: false });
 
     if (runsError) {

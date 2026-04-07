@@ -36,7 +36,12 @@ export default async function ThresholdsPage({
 
   // Fetch projects and thresholds in parallel
   const [{ data: projects }, { data: thresholdRows }] = await Promise.all([
-    supabase.from("projects").select("id, name, slug").order("name"),
+    supabase
+      .from("projects")
+      .select("id, name, slug")
+      // RLS perf hint — not a security boundary (see CLAUDE.md)
+      .eq("user_id", user.id)
+      .order("name"),
     supabase
       .from("thresholds")
       .select("project_id, assertion_type, pass_threshold")

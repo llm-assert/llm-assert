@@ -14,9 +14,11 @@ import {
 export async function RecentRunsTable({
   projectId,
   projectSlug,
+  userId,
 }: {
   projectId: string;
   projectSlug: string;
+  userId: string;
 }) {
   const supabase = await createClient();
 
@@ -26,6 +28,8 @@ export async function RecentRunsTable({
       "id, started_at, branch, commit_sha, total_evaluations, passed, failed, inconclusive",
     )
     .eq("project_id", projectId)
+    // RLS perf hint — not a security boundary (see CLAUDE.md)
+    .eq("user_id", userId)
     .order("started_at", { ascending: false })
     .limit(10);
 

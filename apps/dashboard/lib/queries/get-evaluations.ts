@@ -34,6 +34,7 @@ export function validateResult(
 
 export async function getEvaluations(
   runId: string,
+  userId: string,
   filters: {
     type?: AssertionTypeFilter;
     result?: ResultFilter;
@@ -53,6 +54,8 @@ export async function getEvaluations(
       { count: "exact" },
     )
     .eq("test_run_id", runId)
+    // RLS perf hint — not a security boundary (see CLAUDE.md)
+    .eq("user_id", userId)
     .order("created_at", { ascending: false });
 
   if (filters.type) {

@@ -18,17 +18,20 @@ import type {
 
 export async function EvaluationsTable({
   runId,
+  userId,
   projectSlug,
   filters,
   page,
 }: {
   runId: string;
+  userId: string;
   projectSlug: string;
   filters: { type?: AssertionTypeFilter; result?: ResultFilter };
   page: number;
 }) {
   const { evaluations, totalCount, totalPages, perPage } = await getEvaluations(
     runId,
+    userId,
     filters,
     page,
   );
