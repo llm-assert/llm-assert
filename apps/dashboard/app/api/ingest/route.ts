@@ -7,6 +7,8 @@ import { IngestPayloadSchema } from "./schema";
 
 export const maxDuration = 30;
 
+const INGEST_MAX_BODY_BYTES = 1_048_576; // 1 MB
+
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -38,7 +40,35 @@ export function OPTIONS(): Response {
 
 export async function POST(request: Request): Promise<Response> {
   try {
-    // 1. Extract Bearer token
+    // 1. Content-Length fast-path size check (before auth, before body read)
+    const contentLengthHeader = request.headers.get("content-length");
+    if (
+      contentLengthHeader != null &&
+      Number(contentLengthHeader) > INGEST_MAX_BODY_BYTES
+    ) {
+      console.error(
+        JSON.stringify({
+          source: "ingest",
+          event: "payload_too_large",
+          content_length_header: Number(contentLengthHeader),
+          actual_bytes: null,
+          limit_bytes: INGEST_MAX_BODY_BYTES,
+          user_id: null,
+          project_id: null,
+        }),
+      );
+      return errorResponse(
+        "PAYLOAD_TOO_LARGE",
+        "Request body exceeds 1 MB size limit",
+        413,
+        {
+          max_bytes: INGEST_MAX_BODY_BYTES,
+          actual_bytes: Number(contentLengthHeader),
+        },
+      );
+    }
+
+    // 2. Extract Bearer token
     const authHeader = request.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return errorResponse("UNAUTHORIZED", "Missing or invalid API key", 401);
@@ -48,7 +78,7 @@ export async function POST(request: Request): Promise<Response> {
       return errorResponse("UNAUTHORIZED", "Missing or invalid API key", 401);
     }
 
-    // 2. SHA-256 hash and lookup
+    // 3. SHA-256 hash and lookup
     const keyHash = createHash("sha256").update(token).digest("hex");
     const db = supabaseAdmin();
 
@@ -63,10 +93,45 @@ export async function POST(request: Request): Promise<Response> {
       return errorResponse("UNAUTHORIZED", "Missing or invalid API key", 401);
     }
 
-    // 3. Parse and validate payload
+    // 4. Read body with size check, then parse JSON
+    //    (replaces request.json() for size enforcement)
+    let rawBody: string;
+    try {
+      rawBody = await request.text();
+    } catch {
+      return errorResponse(
+        "INVALID_PAYLOAD",
+        "Failed to read request body",
+        400,
+      );
+    }
+
+    const actualBytes = Buffer.byteLength(rawBody, "utf8");
+    if (actualBytes > INGEST_MAX_BODY_BYTES) {
+      console.error(
+        JSON.stringify({
+          source: "ingest",
+          event: "payload_too_large",
+          content_length_header: contentLengthHeader
+            ? Number(contentLengthHeader)
+            : null,
+          actual_bytes: actualBytes,
+          limit_bytes: INGEST_MAX_BODY_BYTES,
+          user_id: apiKey.user_id,
+          project_id: apiKey.project_id,
+        }),
+      );
+      return errorResponse(
+        "PAYLOAD_TOO_LARGE",
+        "Request body exceeds 1 MB size limit",
+        413,
+        { max_bytes: INGEST_MAX_BODY_BYTES, actual_bytes: actualBytes },
+      );
+    }
+
     let body: unknown;
     try {
-      body = await request.json();
+      body = JSON.parse(rawBody);
     } catch {
       return errorResponse("INVALID_PAYLOAD", "Invalid JSON", 400);
     }
@@ -82,7 +147,7 @@ export async function POST(request: Request): Promise<Response> {
     }
     const payload = parsed.data;
 
-    // 4. Verify project slug matches API key's project
+    // 5. Verify project slug matches API key's project
     const { data: project } = await db
       .from("projects")
       .select("slug")
@@ -93,7 +158,7 @@ export async function POST(request: Request): Promise<Response> {
       return errorResponse("PROJECT_NOT_FOUND", "Project not found", 404);
     }
 
-    // 5. Atomic ingest: quota check + test_run upsert + evaluations insert
+    // 6. Atomic ingest: quota check + test_run upsert + evaluations insert
     const { data: result, error: rpcError } = await db.rpc("ingest_test_run", {
       p_user_id: apiKey.user_id,
       p_project_id: apiKey.project_id,
@@ -182,7 +247,7 @@ export async function POST(request: Request): Promise<Response> {
       );
     }
 
-    // 6. Non-blocking: update last_used_at after response
+    // 7. Non-blocking: update last_used_at after response
     after(async () => {
       await db
         .from("api_keys")
@@ -190,7 +255,7 @@ export async function POST(request: Request): Promise<Response> {
         .eq("id", apiKey.id);
     });
 
-    // 7. Success
+    // 8. Success
     return jsonResponse(
       {
         run_id: row.run_id,
