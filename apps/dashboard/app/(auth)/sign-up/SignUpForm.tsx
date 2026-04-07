@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,8 +22,17 @@ interface SignUpFormProps {
 export function SignUpForm({ next }: SignUpFormProps) {
   const [state, formAction, isPending] = useActionState(signUp, null);
   const [oauthLoading, setOauthLoading] = useState(false);
+  const [oauthError, setOauthError] = useState<string | null>(null);
+  const oauthErrorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (oauthError && oauthErrorRef.current) {
+      oauthErrorRef.current.focus();
+    }
+  }, [oauthError]);
 
   async function handleGitHubSignUp() {
+    setOauthError(null);
     setOauthLoading(true);
     const supabase = createClient();
     const { data, error } = await supabase.auth.signInWithOAuth({
@@ -33,11 +42,23 @@ export function SignUpForm({ next }: SignUpFormProps) {
       },
     });
     if (error) {
+      console.error("[oauth/github]", {
+        message: error.message,
+        status: error.status,
+      });
+      setOauthError(
+        "Couldn't connect to GitHub. Please try again or sign up with email.",
+      );
       setOauthLoading(false);
       return;
     }
     if (data.url) {
       window.location.href = data.url;
+    } else {
+      setOauthError(
+        "Couldn't connect to GitHub. Please try again or sign up with email.",
+      );
+      setOauthLoading(false);
     }
   }
 
@@ -95,6 +116,21 @@ export function SignUpForm({ next }: SignUpFormProps) {
           {oauthLoading ? "Redirecting..." : "Continue with GitHub"}
         </Button>
 
+        <div
+          ref={oauthErrorRef}
+          tabIndex={-1}
+          role="alert"
+          aria-atomic="true"
+          className="outline-none"
+          data-testid="sign-up-form-oauth-error"
+        >
+          {oauthError && (
+            <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground">
+              {oauthError}
+            </div>
+          )}
+        </div>
+
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
             <span className="w-full border-t" />
@@ -109,6 +145,7 @@ export function SignUpForm({ next }: SignUpFormProps) {
           {state?.error && (
             <div
               role="alert"
+              data-testid="sign-up-form-email-error"
               className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground"
             >
               {state.error}

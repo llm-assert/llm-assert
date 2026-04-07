@@ -54,7 +54,7 @@ export default defineConfig({
     {
       name: "unauthenticated",
       use: { ...devices["Desktop Chrome"] },
-      testMatch: /(?:route-guard|landing|seo)\.spec\.ts/,
+      testMatch: /(?:route-guard|landing|seo|sign-in|auth-error)\.spec\.ts/,
     },
   ],
   webServer: process.env.E2E_BASE_URL
