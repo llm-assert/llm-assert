@@ -333,7 +333,7 @@ describe("POST /api/webhooks/stripe", () => {
       expect(mockEq).toHaveBeenCalledWith("stripe_customer_id", "cus_456");
     });
 
-    it("updates status to active and resets evaluations_used on invoice.paid", async () => {
+    it("updates status to active, resets evaluations_used, and stamps last_evaluations_reset_at on invoice.paid", async () => {
       const body = buildEvent("invoice.paid", { customer: "cus_789" });
 
       const res = await POST(makeRequest(body));
@@ -341,7 +341,13 @@ describe("POST /api/webhooks/stripe", () => {
       expect(mockUpdate).toHaveBeenCalledWith({
         status: "active",
         evaluations_used: 0,
+        last_evaluations_reset_at: expect.any(String),
       });
+      // Verify the timestamp is a valid ISO string
+      const updateArg = mockUpdate.mock.calls[0][0];
+      expect(new Date(updateArg.last_evaluations_reset_at).toISOString()).toBe(
+        updateArg.last_evaluations_reset_at,
+      );
       expect(mockEq).toHaveBeenCalledWith("stripe_customer_id", "cus_789");
     });
 

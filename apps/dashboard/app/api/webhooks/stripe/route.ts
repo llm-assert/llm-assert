@@ -244,7 +244,11 @@ async function handleInvoicePaid(
 
   const { error } = await db
     .from("subscriptions")
-    .update({ status: "active", evaluations_used: 0 })
+    .update({
+      status: "active",
+      evaluations_used: 0,
+      last_evaluations_reset_at: new Date().toISOString(),
+    })
     .eq("stripe_customer_id", customerId);
 
   if (error) throw error;
