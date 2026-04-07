@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.0
+
+### Minor Changes
+
+- [#85](https://github.com/llm-assert/llm-assert/pull/85) [`dd265ba`](https://github.com/llm-assert/llm-assert/commit/dd265ba43f37b3a32f78176a58c15beca678192c) Thanks [@Cporter97](https://github.com/Cporter97)! - Add pre-flight health check to reporter — validates API key, project slug, and quota status before judge calls run. New `preflight` config option (`'warn'` | `'fail'` | `false`), `preflightTimeout` option, and exported `preflightCheck()` function for `globalSetup` fail-fast.
+
 ## 0.5.1
 
 ### Patch Changes
