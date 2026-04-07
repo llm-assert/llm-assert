@@ -8,8 +8,42 @@ import { NextResponse, type NextRequest } from "next/server";
 import { publicEnv } from "@/lib/env";
 
 export async function proxy(request: NextRequest) {
-  // Skip auth for static SEO routes (high-frequency crawler endpoints)
   const { pathname } = request.nextUrl;
+
+  // FEAT-106: Redirect *.vercel.app to canonical custom domain in production.
+  // Fires before Supabase session refresh to avoid wasted getUser() round-trips.
+  // API paths are excluded — POST redirects break most HTTP clients.
+  // Belt-and-suspenders: also configure Vercel Dashboard domain redirect for edge-level coverage.
+  if (
+    process.env.VERCEL_ENV === "production" &&
+    !pathname.startsWith("/api/")
+  ) {
+    const hostname = request.headers.get("host") ?? "";
+    if (hostname.endsWith(".vercel.app")) {
+      try {
+        const targetHost = new URL(publicEnv.NEXT_PUBLIC_APP_URL).hostname;
+        // Safety: skip redirect if target is localhost or .vercel.app (loop prevention)
+        if (
+          !targetHost.includes("localhost") &&
+          !targetHost.endsWith(".vercel.app")
+        ) {
+          const url = request.nextUrl.clone();
+          url.host = targetHost;
+          url.port = "";
+          url.protocol = "https";
+          return NextResponse.redirect(url, 301);
+        }
+      } catch {
+        // Malformed NEXT_PUBLIC_APP_URL — fall through to normal proxy logic.
+        // Log for operator visibility (appears in Vercel runtime logs).
+        console.error(
+          "[proxy] hostname redirect skipped: invalid NEXT_PUBLIC_APP_URL",
+        );
+      }
+    }
+  }
+
+  // Skip auth for static SEO routes (high-frequency crawler endpoints)
   if (
     pathname === "/robots.txt" ||
     pathname === "/sitemap.xml" ||
