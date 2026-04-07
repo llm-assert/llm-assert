@@ -5,19 +5,31 @@ import { AlertTriangle, X } from "lucide-react";
 import Link from "next/link";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import type { PlanName } from "@/lib/plans.client";
 
 const DISMISS_KEY = "billing-banner-dismissed";
+
+function formatResetDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString(undefined, {
+    month: "long",
+    day: "numeric",
+  });
+}
 
 interface QuotaWarningBannerProps {
   used: number;
   limit: number;
   remaining: number;
+  plan: PlanName;
+  nextResetDate: string | null;
 }
 
 export function QuotaWarningBanner({
   used,
   limit,
   remaining,
+  plan,
+  nextResetDate,
 }: QuotaWarningBannerProps) {
   // Start dismissed to avoid hydration flash — useEffect reads sessionStorage
   const [dismissed, setDismissed] = useState(true);
@@ -27,6 +39,8 @@ export function QuotaWarningBanner({
   }, []);
 
   if (dismissed) return null;
+
+  const resetLabel = plan === "free" ? "Resets" : "Renews";
 
   return (
     <Alert
@@ -46,6 +60,19 @@ export function QuotaWarningBanner({
           {remaining.toLocaleString()} assertion evaluations remaining this
           month ({used.toLocaleString()} of {limit.toLocaleString()} used).
           Assertions may become inconclusive when the limit is reached.
+          {nextResetDate && (
+            <>
+              {" "}
+              {resetLabel}{" "}
+              <time
+                dateTime={nextResetDate}
+                data-testid="quota-warning-reset-date"
+              >
+                {formatResetDate(nextResetDate)}
+              </time>
+              .
+            </>
+          )}
         </p>
         <div className="mt-2" data-testid="quota-warning-cta">
           <Button variant="outline" size="sm" asChild>
@@ -72,9 +99,18 @@ export function QuotaWarningBanner({
 interface QuotaExceededBannerProps {
   used: number;
   limit: number;
+  plan: PlanName;
+  nextResetDate: string | null;
 }
 
-export function QuotaExceededBanner({ used, limit }: QuotaExceededBannerProps) {
+export function QuotaExceededBanner({
+  limit,
+  used,
+  plan,
+  nextResetDate,
+}: QuotaExceededBannerProps) {
+  const isFree = plan === "free";
+
   return (
     <Alert
       variant="destructive"
@@ -91,8 +127,32 @@ export function QuotaExceededBanner({ used, limit }: QuotaExceededBannerProps) {
       <AlertDescription>
         <p>
           You&apos;ve used all {limit.toLocaleString()} assertion evaluations
-          this month ({used.toLocaleString()} used). Upgrade your plan to
-          continue running assertions.
+          this month ({used.toLocaleString()} used).{" "}
+          {isFree && nextResetDate ? (
+            <>
+              Resets{" "}
+              <time
+                dateTime={nextResetDate}
+                data-testid="quota-exceeded-reset-date"
+              >
+                {formatResetDate(nextResetDate)}
+              </time>
+              . Upgrade your plan to continue running assertions now.
+            </>
+          ) : nextResetDate ? (
+            <>
+              Renews{" "}
+              <time
+                dateTime={nextResetDate}
+                data-testid="quota-exceeded-reset-date"
+              >
+                {formatResetDate(nextResetDate)}
+              </time>
+              . Upgrade your plan to increase your limit.
+            </>
+          ) : (
+            <>Upgrade your plan to continue running assertions.</>
+          )}
         </p>
         <div className="mt-2" data-testid="quota-exceeded-cta">
           <Button variant="outline" size="sm" asChild>

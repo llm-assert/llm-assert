@@ -6,7 +6,8 @@ export type LogEvent =
   | "judge.rate_limited"
   | "judge.backoff"
   | "judge.provider_fallback"
-  | "judge.parse_error";
+  | "judge.parse_error"
+  | "reporter.quota_exceeded";
 
 type LogLevel = "warn" | "error" | "debug";
 

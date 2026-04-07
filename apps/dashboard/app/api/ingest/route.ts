@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import { after } from "next/server";
+import { revalidateTag } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { computeNextResetDate } from "@/lib/billing/reset-date";
 import { IngestPayloadSchema } from "./schema";
 
 export const maxDuration = 30;
@@ -122,13 +124,60 @@ export async function POST(request: Request): Promise<Response> {
     const row = Array.isArray(result) ? result[0] : result;
 
     if (row?.status === "quota_exceeded") {
+      // Query subscription for plan and reset date context (graceful degradation)
+      const { data: sub, error: subError } = await db
+        .from("subscriptions")
+        .select("plan, current_period_end")
+        .eq("user_id", apiKey.user_id)
+        .eq("status", "active")
+        .maybeSingle();
+
+      if (subError) {
+        console.error(
+          JSON.stringify({
+            source: "ingest",
+            event: "subscription_query_error",
+            user_id: apiKey.user_id,
+            error: subError.message,
+          }),
+        );
+      }
+
+      const plan = sub?.plan ?? "free";
+      const nextResetDate = computeNextResetDate(
+        plan,
+        sub?.current_period_end ?? null,
+      );
+
+      // Structured log for observability
+      console.error(
+        JSON.stringify({
+          source: "ingest",
+          event: "quota_exceeded",
+          user_id: apiKey.user_id,
+          project_id: apiKey.project_id,
+          plan,
+          evaluations_used: row.evaluations_used,
+          evaluation_limit: row.evaluation_limit,
+          batch_size: payload.evaluations.length,
+        }),
+      );
+
+      // Bust subscription cache so dashboard reflects exhaustion immediately
+      after(() => {
+        revalidateTag(`subscription-${apiKey.user_id}`, "max");
+      });
+
       return errorResponse(
         "QUOTA_EXCEEDED",
-        `Evaluation limit reached (${row.evaluations_used}/${row.evaluation_limit}). Upgrade at https://llmassert.com/billing`,
+        `Evaluation limit reached (${row.evaluations_used}/${row.evaluation_limit}).`,
         429,
         {
           evaluations_used: row.evaluations_used,
           evaluation_limit: row.evaluation_limit,
+          plan,
+          next_reset_date: nextResetDate,
+          upgrade_url: "https://llmassert.com/settings/billing",
         },
       );
     }

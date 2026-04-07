@@ -1,12 +1,24 @@
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import type { PlanName } from "@/lib/plans.client";
 
-export function UsageMeter({ used, limit }: { used: number; limit: number }) {
+export function UsageMeter({
+  used,
+  limit,
+  plan,
+  nextResetDate,
+}: {
+  used: number;
+  limit: number;
+  plan?: PlanName;
+  nextResetDate?: string | null;
+}) {
   const percentage = limit > 0 ? Math.min((used / limit) * 100, 100) : 0;
   const isWarning = percentage >= 80;
 
   const formattedUsed = used.toLocaleString();
   const formattedLimit = limit.toLocaleString();
+  const resetLabel = plan === "free" ? "Resets" : "Renews";
 
   return (
     <div className="space-y-2">
@@ -27,7 +39,21 @@ export function UsageMeter({ used, limit }: { used: number; limit: number }) {
       {isWarning && (
         <p className="text-xs text-amber-600">
           You&apos;ve used {Math.round(percentage)}% of your evaluation quota.
-          Consider upgrading your plan.
+          {nextResetDate ? (
+            <>
+              {" "}
+              {resetLabel}{" "}
+              <time dateTime={nextResetDate}>
+                {new Date(nextResetDate).toLocaleDateString(undefined, {
+                  month: "long",
+                  day: "numeric",
+                })}
+              </time>
+              .
+            </>
+          ) : (
+            <> Consider upgrading your plan.</>
+          )}
         </p>
       )}
     </div>

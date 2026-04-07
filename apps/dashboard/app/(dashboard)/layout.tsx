@@ -39,11 +39,6 @@ export default async function DashboardLayout({
       <SidebarProvider defaultOpen={defaultOpen}>
         <AppSidebar user={dashboardUser} />
         <SidebarInset id="main-content">
-          <div
-            aria-live="assertive"
-            aria-atomic="true"
-            id="billing-alert-region"
-          />
           <Suspense fallback={null}>
             <BillingAlertBanner />
           </Suspense>

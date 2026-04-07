@@ -72,12 +72,18 @@ export default async function BillingPage({
                     plan: currentPlan,
                     status: subscriptionStatus!,
                     currentPeriodEnd: subscription.current_period_end,
+                    nextResetDate: subscription.next_reset_date,
                   }
                 : null
             }
           />
           <Separator />
-          <UsageMeter used={evaluationsUsed} limit={evaluationLimit} />
+          <UsageMeter
+            used={evaluationsUsed}
+            limit={evaluationLimit}
+            plan={currentPlan}
+            nextResetDate={subscription?.next_reset_date}
+          />
         </CardContent>
       </Card>
 

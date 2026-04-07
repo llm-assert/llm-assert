@@ -1,10 +1,12 @@
 import { timingSafeEqual } from "node:crypto";
+import { revalidateTag } from "next/cache";
 import { serverEnv } from "@/lib/env.server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export const maxDuration = 60;
 
 export async function GET(request: Request): Promise<Response> {
+  const startWallClock = new Date().toISOString();
   const start = performance.now();
 
   // Guard: CRON_SECRET must be configured
@@ -35,6 +37,37 @@ export async function GET(request: Request): Promise<Response> {
   const paidResetCount: number = result?.paid_reset_count ?? 0;
   const freeResetCount: number = result?.free_reset_count ?? 0;
   const durationMs = Math.round(performance.now() - start);
+
+  // Invalidate subscription cache for users whose quota was just reset
+  const totalResets = paidResetCount + freeResetCount;
+  if (totalResets > 0) {
+    try {
+      const { data: resetUsers } = await db
+        .from("subscriptions")
+        .select("user_id")
+        .eq("status", "active")
+        .gt("last_evaluations_reset_at", startWallClock);
+
+      if (resetUsers) {
+        for (const row of resetUsers) {
+          try {
+            revalidateTag(`subscription-${row.user_id}`, "max");
+          } catch (tagError) {
+            logCron("cache_invalidation_error", {
+              user_id: row.user_id,
+              error:
+                tagError instanceof Error ? tagError.message : "Unknown error",
+            });
+          }
+        }
+      }
+    } catch (queryError) {
+      logCron("cache_invalidation_error", {
+        error:
+          queryError instanceof Error ? queryError.message : "Unknown error",
+      });
+    }
+  }
 
   logCron("success", {
     paid_reset_count: paidResetCount,
