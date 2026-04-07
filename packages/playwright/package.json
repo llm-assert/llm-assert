@@ -51,6 +51,7 @@
   "files": [
     "dist",
     "README.md",
+    "MIGRATION.md",
     ".env.example"
   ],
   "scripts": {

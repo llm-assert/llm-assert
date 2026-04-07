@@ -36,6 +36,7 @@ reporter: [
 | `retries`               | `number`                        | `1`                       | No       | Retry count on network failure              |
 | `onError`               | `'warn' \| 'throw' \| 'silent'` | `'warn'`                  | No       | How to handle ingest failures               |
 | `onThresholdFetchError` | `'warn' \| 'throw' \| 'silent'` | `'warn'`                  | No       | How to handle threshold fetch failures      |
+| `onQuotaExhausted`      | `'warn' \| 'fail'`              | `'warn'`                  | No       | Behavior when monthly quota is exceeded     |
 | `metadata`              | `Record<string, unknown>`       | —                         | No       | Arbitrary metadata attached to the run      |
 
 ### Local-only mode

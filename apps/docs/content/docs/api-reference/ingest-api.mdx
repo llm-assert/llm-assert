@@ -81,14 +81,15 @@ interface Evaluation {
 
 ## Error responses
 
-| Status | Code                | Description                                        |
-| ------ | ------------------- | -------------------------------------------------- |
-| 401    | `UNAUTHORIZED`      | Invalid or missing API key                         |
-| 400    | `INVALID_PAYLOAD`   | Request body fails validation                      |
-| 404    | `PROJECT_NOT_FOUND` | `project_slug` doesn't match the API key's project |
-| 403    | `NO_SUBSCRIPTION`   | No active subscription for this user               |
-| 429    | `QUOTA_EXCEEDED`    | Monthly evaluation limit reached                   |
-| 500    | `INTERNAL_ERROR`    | Server error                                       |
+| Status | Code                | Description                                                            |
+| ------ | ------------------- | ---------------------------------------------------------------------- |
+| 401    | `UNAUTHORIZED`      | Invalid or missing API key                                             |
+| 400    | `INVALID_PAYLOAD`   | Request body fails validation                                          |
+| 404    | `PROJECT_NOT_FOUND` | `project_slug` doesn't match the API key's project                     |
+| 403    | `NO_SUBSCRIPTION`   | No active subscription for this user                                   |
+| 413    | `PAYLOAD_TOO_LARGE` | Request body exceeds 1 MB limit. Reduce `batchSize` in reporter config |
+| 429    | `QUOTA_EXCEEDED`    | Monthly evaluation limit reached                                       |
+| 500    | `INTERNAL_ERROR`    | Server error                                                           |
 
 ## Constraints
 

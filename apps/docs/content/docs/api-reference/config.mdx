@@ -45,6 +45,7 @@ interface ReporterConfig {
   retries?: number; // default: 1
   onError?: "warn" | "throw" | "silent"; // default: 'warn'
   onThresholdFetchError?: "warn" | "throw" | "silent"; // default: 'warn'
+  onQuotaExhausted?: "warn" | "fail"; // default: 'warn'
   metadata?: Record<string, unknown>;
 }
 ```
@@ -66,11 +67,14 @@ Environment variable override: `LLMASSERT_OUTPUT_FILE`.
 
 ## Environment variables
 
-| Variable                | Used by       | Description                    |
-| ----------------------- | ------------- | ------------------------------ |
-| `OPENAI_API_KEY`        | Judge         | Primary judge model API key    |
-| `ANTHROPIC_API_KEY`     | Judge         | Fallback judge model API key   |
-| `LLMASSERT_API_KEY`     | Reporter      | Dashboard ingest API key       |
-| `LLMASSERT_OUTPUT_FILE` | JSON Reporter | Override output file path      |
-| `BRANCH_NAME`           | Reporter      | Git branch (non-GitHub CI)     |
-| `COMMIT_SHA`            | Reporter      | Git commit SHA (non-GitHub CI) |
+| Variable                | Used by       | Description                                  |
+| ----------------------- | ------------- | -------------------------------------------- |
+| `OPENAI_API_KEY`        | Judge         | Primary judge model API key                  |
+| `ANTHROPIC_API_KEY`     | Judge         | Fallback judge model API key                 |
+| `LLMASSERT_API_KEY`     | Reporter      | Dashboard ingest API key                     |
+| `LLMASSERT_OUTPUT_FILE` | JSON Reporter | Override output file path                    |
+| `LLMASSERT_DEBUG`       | Logger        | Set to `1` for debug-level structured events |
+| `BRANCH_NAME`           | Reporter      | Git branch (non-GitHub CI)                   |
+| `COMMIT_SHA`            | Reporter      | Git commit SHA (non-GitHub CI)               |
+
+The reporter auto-detects GitHub Actions environment variables (`GITHUB_REF_NAME`, `GITHUB_SHA`, `GITHUB_RUN_ID`). For GitLab CI, CircleCI, and Jenkins, set `BRANCH_NAME` and `COMMIT_SHA` manually in your CI configuration to populate branch and commit metadata in the dashboard.

@@ -44,6 +44,8 @@ test("chatbot response is grounded in docs", async () => {
 
 Requires [`@playwright/test`](https://www.npmjs.com/package/@playwright/test) `>=1.40.0` as a peer dependency.
 
+> **Upgrading from an earlier version?** See [MIGRATION.md](./MIGRATION.md) for version-specific guidance, breaking changes, and verification steps.
+
 ```bash
 pnpm add -D @llmassert/playwright
 # or: npm install -D @llmassert/playwright
@@ -432,6 +434,7 @@ Add the reporter to the `reporter` array in your `playwright.config.ts` (see [Gl
 | `retries`               | `number`                        | `1`                       | No       | Ingest POST retry count on network failure (does not affect judge evaluation retries)        |
 | `onError`               | `'warn' \| 'throw' \| 'silent'` | `'warn'`                  | No       | How to handle ingest failures. Default `'warn'` keeps your test suite unblocked              |
 | `onThresholdFetchError` | `'warn' \| 'throw' \| 'silent'` | `'warn'`                  | No       | How to handle remote threshold fetch failures (separate from `onError`)                      |
+| `onQuotaExhausted`      | `'warn' \| 'fail'`              | `'warn'`                  | No       | Behavior when monthly evaluation quota is exceeded (HTTP 429). `'fail'` throws an error      |
 | `metadata`              | `Record<string, unknown>`       | —                         | No       | Arbitrary metadata attached to the run (not per-evaluation)                                  |
 
 ### Local-only Mode
@@ -468,4 +471,4 @@ Found a bug or have a feature request? [Open an issue](https://github.com/llm-as
 
 ---
 
-The five matcher APIs are stable. Reporter payload shape may evolve before 1.0.
+**Stability:** The five matcher APIs and `AssertionResult` return shape are stable (semver). The `IngestPayload` wire format is additive-only — new optional fields may appear, existing fields will not be removed. Structured logger events are internal and may change without notice. See [MIGRATION.md](./MIGRATION.md#stability-contract) for the full stability contract.
