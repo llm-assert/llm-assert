@@ -27,6 +27,30 @@ export function mockFetch(responses: MockFetchResponse[]): void {
   };
 }
 
+export function build429Response(overrides?: {
+  plan?: string;
+  next_reset_date?: string | null;
+  evaluations_used?: number;
+  evaluation_limit?: number;
+}): MockFetchResponse {
+  return {
+    status: 429,
+    body: JSON.stringify({
+      error: {
+        code: "QUOTA_EXCEEDED",
+        message: "Evaluation limit reached.",
+        details: {
+          evaluations_used: overrides?.evaluations_used ?? 100,
+          evaluation_limit: overrides?.evaluation_limit ?? 100,
+          plan: overrides?.plan ?? "free",
+          next_reset_date: overrides?.next_reset_date ?? "2026-05-01T00:00:00Z",
+          upgrade_url: "https://llmassert.com/settings/billing",
+        },
+      },
+    }),
+  };
+}
+
 export function getFetchCalls(): FetchCall[] {
   return calls;
 }

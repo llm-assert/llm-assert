@@ -9,6 +9,7 @@ import {
   mockFetch,
   getFetchCalls,
   restoreFetch,
+  build429Response,
 } from "../helpers/mock-fetch.js";
 
 test.afterEach(() => {
@@ -82,5 +83,34 @@ test.describe("Reporter batching", () => {
     expect(body.evaluations).toHaveLength(1);
     expect(body.evaluations[0].assertion_type).toBe("groundedness");
     expect(body.evaluations[0].test_name).toBe("sample test");
+  });
+
+  test("skips remaining batches after 429", async () => {
+    // First batch returns 429, second and third should not be sent
+    mockFetch([build429Response(), { status: 200 }, { status: 200 }]);
+
+    const origError = console.error;
+    console.error = () => {};
+    const origWrite = process.stderr.write;
+    process.stderr.write = () => true;
+
+    const reporter = createReporter({
+      apiKey: "sk-test-mock",
+      batchSize: 2,
+    });
+    reporter.begin();
+    for (let i = 0; i < 5; i++) {
+      reporter.onTestEnd(
+        makeTestCase(`test-${i}`),
+        makeTestResultWithEval(validEvalData),
+      );
+    }
+    await reporter.end();
+
+    console.error = origError;
+    process.stderr.write = origWrite;
+
+    // Only 1 fetch call — batch 1 hit 429, batches 2 and 3 skipped
+    expect(getFetchCalls()).toHaveLength(1);
   });
 });

@@ -27,6 +27,8 @@ export async function BillingAlertBanner() {
           <QuotaExceededBanner
             used={alertState.used}
             limit={alertState.limit}
+            plan={alertState.plan}
+            nextResetDate={alertState.nextResetDate}
           />
         );
       case "quota_warning":
@@ -35,6 +37,8 @@ export async function BillingAlertBanner() {
             used={alertState.used}
             limit={alertState.limit}
             remaining={alertState.remaining}
+            plan={alertState.plan}
+            nextResetDate={alertState.nextResetDate}
           />
         );
       default:

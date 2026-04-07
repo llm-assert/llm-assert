@@ -15,12 +15,20 @@ export const GLOBAL_BANNER_THRESHOLDS: Record<PlanName, number> = {
 
 export type BillingAlertState =
   | { state: "past_due" }
-  | { state: "quota_exceeded"; used: number; limit: number }
+  | {
+      state: "quota_exceeded";
+      used: number;
+      limit: number;
+      plan: PlanName;
+      nextResetDate: string | null;
+    }
   | {
       state: "quota_warning";
       used: number;
       limit: number;
       remaining: number;
+      plan: PlanName;
+      nextResetDate: string | null;
     }
   | { state: "none" };
 
@@ -42,11 +50,13 @@ export function getBillingAlertState(
 
   if (limit <= 0) return { state: "none" };
 
+  const plan = (subscription.plan as PlanName) ?? "free";
+  const nextResetDate = subscription.next_reset_date ?? null;
+
   if (used >= limit) {
-    return { state: "quota_exceeded", used, limit };
+    return { state: "quota_exceeded", used, limit, plan, nextResetDate };
   }
 
-  const plan = subscription.plan as PlanName;
   const threshold =
     GLOBAL_BANNER_THRESHOLDS[plan] ?? GLOBAL_BANNER_THRESHOLDS.free;
   const ratio = used / limit;
@@ -57,6 +67,8 @@ export function getBillingAlertState(
       used,
       limit,
       remaining: limit - used,
+      plan,
+      nextResetDate,
     };
   }
 

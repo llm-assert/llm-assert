@@ -6,6 +6,7 @@ type SubscriptionState = {
   plan: PlanName;
   status: "active" | "past_due" | "canceled";
   currentPeriodEnd: string | null;
+  nextResetDate: string | null;
 };
 
 const statusConfig = {
@@ -37,15 +38,30 @@ export function SubscriptionStatus({
         subscription.currentPeriodEnd && (
           <p className="text-sm text-muted-foreground">
             Renews{" "}
-            {new Date(subscription.currentPeriodEnd).toLocaleDateString(
-              undefined,
-              { month: "long", day: "numeric", year: "numeric" },
-            )}
+            <time dateTime={subscription.currentPeriodEnd}>
+              {new Date(subscription.currentPeriodEnd).toLocaleDateString(
+                undefined,
+                { month: "long", day: "numeric", year: "numeric" },
+              )}
+            </time>
           </p>
         )}
       {isFree && (
         <p className="text-sm text-muted-foreground">
-          Upgrade to unlock more evaluations and projects.
+          {subscription?.nextResetDate ? (
+            <>
+              Evaluations reset{" "}
+              <time dateTime={subscription.nextResetDate}>
+                {new Date(subscription.nextResetDate).toLocaleDateString(
+                  undefined,
+                  { month: "long", day: "numeric" },
+                )}
+              </time>{" "}
+              (monthly on the 1st, UTC).
+            </>
+          ) : (
+            <>Upgrade to unlock more evaluations and projects.</>
+          )}
         </p>
       )}
       {subscription?.status === "canceled" && !isFree && (

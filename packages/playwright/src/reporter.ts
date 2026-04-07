@@ -14,8 +14,10 @@ import {
 import type {
   EvaluationRecord,
   IngestPayload,
+  QuotaExceededInfo,
   ReporterConfig,
 } from "./types.js";
+import { log } from "./logger.js";
 
 /**
  * Custom Playwright reporter that sends evaluation results to the LLMAssert dashboard.
@@ -35,6 +37,7 @@ class LLMAssertReporter implements Reporter {
   private config: ReporterConfig;
   private evaluations: EvaluationRecord[] = [];
   private startedAt: string = "";
+  private quotaExhausted: boolean = false;
 
   constructor(options: ReporterConfig) {
     this.config = {
@@ -43,6 +46,7 @@ class LLMAssertReporter implements Reporter {
       timeout: 10_000,
       retries: 1,
       onError: "warn",
+      onQuotaExhausted: "warn",
       ...options,
     };
   }
@@ -50,6 +54,7 @@ class LLMAssertReporter implements Reporter {
   onBegin(_config: FullConfig, _suite: Suite) {
     this.startedAt = new Date().toISOString();
     this.evaluations = [];
+    this.quotaExhausted = false;
   }
 
   onTestEnd(test: TestCase, result: TestResult) {
@@ -144,7 +149,7 @@ class LLMAssertReporter implements Reporter {
       })),
     };
 
-    // Log run cost summary
+    // Log run cost summary before sending (visible even if all batches are rejected)
     const totalCost = this.evaluations.reduce(
       (sum, e) => sum + (e.judgeCostUsd ?? 0),
       0,
@@ -160,20 +165,31 @@ class LLMAssertReporter implements Reporter {
 
     // Send in batches
     const batchSize = this.config.batchSize!;
-    for (let i = 0; i < payload.evaluations.length; i += batchSize) {
+    const totalBatches = Math.ceil(payload.evaluations.length / batchSize);
+    for (let batchIdx = 0; batchIdx < totalBatches; batchIdx++) {
+      if (this.quotaExhausted) break;
+
+      const start = batchIdx * batchSize;
       const batch: IngestPayload = {
         ...payload,
-        evaluations: payload.evaluations.slice(i, i + batchSize),
+        evaluations: payload.evaluations.slice(start, start + batchSize),
       };
-      await this.sendBatch(batch);
+      const batchesRemaining = totalBatches - batchIdx - 1;
+      await this.sendBatch(batch, batchesRemaining);
     }
   }
 
-  private async sendBatch(payload: IngestPayload): Promise<void> {
+  private async sendBatch(
+    payload: IngestPayload,
+    batchesRemaining: number = 0,
+  ): Promise<void> {
     const url = `${this.config.dashboardUrl}/api/ingest`;
     const retries = this.config.retries!;
 
     for (let attempt = 0; attempt <= retries; attempt++) {
+      let quotaInfo: QuotaExceededInfo | undefined;
+      let is429 = false;
+
       try {
         const response = await fetch(url, {
           method: "POST",
@@ -187,7 +203,16 @@ class LLMAssertReporter implements Reporter {
 
         if (response.ok) return;
 
-        if (attempt === retries) {
+        // Quota exhaustion — parse details, handle outside try/catch
+        if (response.status === 429) {
+          is429 = true;
+          try {
+            const body = await response.json();
+            quotaInfo = body?.error?.details;
+          } catch {
+            // Response body not parseable — quotaInfo stays undefined
+          }
+        } else if (attempt === retries) {
           this.handleError(
             `Ingest failed with status ${response.status}: ${await response.text()}`,
           );
@@ -199,6 +224,60 @@ class LLMAssertReporter implements Reporter {
           );
         }
       }
+
+      // Handle quota exhaustion outside try/catch so throws propagate cleanly
+      if (is429) {
+        this.handleQuotaExhausted(
+          quotaInfo,
+          payload.evaluations.length,
+          batchesRemaining,
+        );
+        return; // only reached in 'warn' mode
+      }
+    }
+  }
+
+  private handleQuotaExhausted(
+    info: QuotaExceededInfo | undefined,
+    batchSize: number,
+    batchesRemaining: number,
+  ): void {
+    this.quotaExhausted = true;
+
+    const used = info?.evaluations_used ?? "?";
+    const limit = info?.evaluation_limit ?? "?";
+    const plan = info?.plan ?? "unknown";
+    const upgradeUrl =
+      info?.upgrade_url ?? "https://llmassert.com/settings/billing";
+
+    let message = `[LLMAssert] Quota exceeded: ${used}/${limit} evaluations used (${plan} plan).`;
+
+    if (info?.next_reset_date) {
+      const resetDate = new Date(info.next_reset_date).toLocaleDateString(
+        undefined,
+        { month: "long", day: "numeric", year: "numeric" },
+      );
+      message += ` Resets ${resetDate}.`;
+    }
+
+    message += ` Upgrade at ${upgradeUrl}`;
+
+    // Structured log for machine parsing
+    log("warn", "reporter.quota_exceeded", {
+      evaluations_used: info?.evaluations_used,
+      evaluation_limit: info?.evaluation_limit,
+      plan,
+      batch_size: batchSize,
+      batches_remaining: batchesRemaining,
+    });
+
+    switch (this.config.onQuotaExhausted) {
+      case "fail":
+        throw new Error(message);
+      case "warn":
+      default:
+        console.error(message);
+        break;
     }
   }
 

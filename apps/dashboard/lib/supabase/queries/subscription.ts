@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { computeNextResetDate } from "@/lib/billing/reset-date";
 
 export type SubscriptionRow = {
   status: string;
@@ -8,6 +9,7 @@ export type SubscriptionRow = {
   evaluations_used: number;
   evaluation_limit: number;
   current_period_end: string | null;
+  next_reset_date: string | null;
 };
 
 /**
@@ -39,7 +41,15 @@ function getCachedSubscription(userId: string) {
           return null;
         }
 
-        return data;
+        if (!data) return null;
+
+        return {
+          ...data,
+          next_reset_date: computeNextResetDate(
+            data.plan,
+            data.current_period_end,
+          ),
+        };
       } catch {
         return null;
       }

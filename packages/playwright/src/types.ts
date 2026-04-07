@@ -103,8 +103,19 @@ export interface ReporterConfig {
   onError?: "warn" | "throw" | "silent";
   /** Error handling mode for threshold fetch failures (default: 'warn') */
   onThresholdFetchError?: "warn" | "throw" | "silent";
+  /** Behavior when quota is exhausted — 'warn' logs message, 'fail' throws (default: 'warn') */
+  onQuotaExhausted?: "warn" | "fail";
   /** Arbitrary metadata attached to the run */
   metadata?: Record<string, unknown>;
+}
+
+/** Quota exhaustion details parsed from the ingest API 429 response */
+export interface QuotaExceededInfo {
+  evaluations_used: number;
+  evaluation_limit: number;
+  plan?: string;
+  next_reset_date?: string | null;
+  upgrade_url?: string;
 }
 
 /** Configuration for the JSON file reporter */
