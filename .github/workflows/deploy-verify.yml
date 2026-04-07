@@ -138,7 +138,7 @@ jobs:
   verify-authenticated:
     if: >-
       github.event.deployment_status.state == 'success' &&
-      github.event.deployment_status.environment == 'Production' &&
+      startsWith(github.event.deployment_status.environment, 'Production') &&
       contains(github.event.deployment_status.target_url, 'llmassert-dashboard')
     needs: verify
     runs-on: ubuntu-latest
