@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.0
+
+### Minor Changes
+
+- [#75](https://github.com/llm-assert/llm-assert/pull/75) [`0f377fa`](https://github.com/llm-assert/llm-assert/commit/0f377fad45aee5100b4917a797edf16f79f9ff9d) Thanks [@Cporter97](https://github.com/Cporter97)! - Add quota exhaustion UX for free tier users
+  - Reporter detects HTTP 429 QUOTA_EXCEEDED and emits human-readable message with plan, reset date, and upgrade URL (instead of raw JSON)
+  - New `onQuotaExhausted` config option (`'warn'` | `'fail'`) to control CI behavior on quota exhaustion
+  - Reporter stops retrying after 429 and skips remaining batches
+  - Structured `reporter.quota_exceeded` log event for machine parsing
+  - New `QuotaExceededInfo` type exported from `@llmassert/playwright`
+
 ## 0.3.1
 
 ### Patch Changes
