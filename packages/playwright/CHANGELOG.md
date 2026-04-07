@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.0
+
+### Minor Changes
+
+- [#79](https://github.com/llm-assert/llm-assert/pull/79) [`b604c15`](https://github.com/llm-assert/llm-assert/commit/b604c15eb4649de47d6be23e1cc6b62b3834bf4b) Thanks [@Cporter97](https://github.com/Cporter97)! - Add 413 Payload Too Large handling: reporter treats oversized payload rejections as non-retryable with actionable guidance to reduce batchSize (SEC-13)
+
 ## 0.4.0
 
 ### Minor Changes
