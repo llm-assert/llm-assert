@@ -104,7 +104,7 @@ test.describe("onboarding checklist", () => {
     await expect(page.getByText("Get your API key")).toBeVisible();
 
     // Project grid should also be visible
-    await expect(page.getByText("Projects")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Projects" })).toBeVisible();
     await expect(page.getByText("E2E Onboarding Test")).toBeVisible();
   });
 
@@ -115,7 +115,7 @@ test.describe("onboarding checklist", () => {
     await page.goto("/dashboard");
 
     // Should see normal project grid with no onboarding
-    await expect(page.getByText("Projects")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Projects" })).toBeVisible();
     await expect(page.getByText("E2E Onboarding Test")).toBeVisible();
 
     // No onboarding UI
