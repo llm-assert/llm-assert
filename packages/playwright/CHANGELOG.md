@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.1
+
+### Patch Changes
+
+- [#82](https://github.com/llm-assert/llm-assert/pull/82) [`0f8cb78`](https://github.com/llm-assert/llm-assert/commit/0f8cb78bb1bc75f6c05004dc3e677e92a600a616) Thanks [@Cporter97](https://github.com/Cporter97)! - Add MIGRATION.md with version-by-version upgrade guide, reporter config comparison table, stability contract, troubleshooting section, and verification checklist (DX-59)
+
 ## 0.5.0
 
 ### Minor Changes
