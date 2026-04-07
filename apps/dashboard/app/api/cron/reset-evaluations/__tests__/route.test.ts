@@ -6,14 +6,16 @@ import * as routeModule from "../route";
 // variables. All values must be inlined or use vi.hoisted().
 // ---------------------------------------------------------------------------
 
-const { CRON_SECRET, mockRpc } = vi.hoisted(() => ({
+const { CRON_SECRET, mockRpc, mockFrom } = vi.hoisted(() => ({
   CRON_SECRET: "cron_test_secret_for_unit_tests_64chars_minimum_hex_value_ok",
   mockRpc: vi.fn(),
+  mockFrom: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/admin", () => ({
   supabaseAdmin: () => ({
     rpc: mockRpc,
+    from: mockFrom,
   }),
 }));
 
@@ -23,6 +25,10 @@ vi.mock("@/lib/env.server", () => ({
       return CRON_SECRET;
     },
   },
+}));
+
+vi.mock("next/cache", () => ({
+  revalidateTag: vi.fn(),
 }));
 
 // ---------------------------------------------------------------------------
@@ -44,6 +50,13 @@ function resetMocks() {
   mockRpc.mockReset().mockResolvedValue({
     data: [{ paid_reset_count: 0, free_reset_count: 0 }],
     error: null,
+  });
+  mockFrom.mockReset().mockReturnValue({
+    select: vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        gt: vi.fn().mockResolvedValue({ data: [] }),
+      }),
+    }),
   });
 }
 
@@ -108,11 +121,12 @@ describe("GET /api/cron/reset-evaluations", () => {
         configurable: true,
       });
 
-      const res = await GET(makeRequest(`Bearer ${CRON_SECRET}`));
-      expect(res.status).toBe(401);
-
-      // Restore
-      Object.defineProperty(mod.serverEnv, "CRON_SECRET", original!);
+      try {
+        const res = await GET(makeRequest(`Bearer ${CRON_SECRET}`));
+        expect(res.status).toBe(401);
+      } finally {
+        Object.defineProperty(mod.serverEnv, "CRON_SECRET", original!);
+      }
     });
 
     it("returns 401 when Authorization header lacks Bearer prefix", async () => {
