@@ -10,11 +10,13 @@ This guide covers upgrading between versions of `@llmassert/playwright`. Each se
 | [0.3.0] | Additive | New `@llmassert/playwright/json-reporter` entry point  |
 | [0.4.0] | Additive | `onQuotaExhausted` config option, 429 quota handling   |
 | [0.5.0] | Additive | 413 Payload Too Large handling, `batchSize` tuning     |
+| [0.6.0] | Additive | Pre-flight health check, `preflightCheck()` export     |
 
 [0.2.0]: #upgrading-to-020
 [0.3.0]: #upgrading-to-030
 [0.4.0]: #upgrading-to-040
 [0.5.0]: #upgrading-to-050
+[0.6.0]: #upgrading-to-060
 
 ---
 
@@ -169,6 +171,75 @@ The reporter sends multiple requests sharing the same `run_id`, so reducing batc
 
 ---
 
+## Upgrading to 0.6.0
+
+### New: Pre-flight health check
+
+The reporter now validates dashboard connectivity, API key, project slug, and quota status **before** judge calls run. This eliminates the common pain point of discovering configuration issues only after all tests have completed.
+
+The pre-flight check fires in `onBegin` (non-blocking — runs in parallel with test execution) and the result is awaited at the top of `onEnd` before sending batches. It adds zero latency to the test execution critical path.
+
+#### `preflight` config option
+
+| Value    | Behavior                                                            |
+| -------- | ------------------------------------------------------------------- |
+| `'warn'` | (default) Log issues to stderr, skip ingestion on auth/quota errors |
+| `'fail'` | Throw an error in `onEnd`, preventing ingestion                     |
+| `false`  | Disable pre-flight entirely                                         |
+
+```ts
+['@llmassert/playwright/reporter', {
+  projectSlug: 'my-project',
+  apiKey: process.env.LLMASSERT_API_KEY,
+  preflight: 'warn',        // default — log and continue
+  preflightTimeout: 5000,   // default — 5 seconds
+}],
+```
+
+> **Important:** `preflight: 'fail'` throws in `onEnd` but cannot halt test execution — Playwright silently catches errors in reporter lifecycle methods (see [Playwright caveat](#onerror-throw-playwright-caveat)). Tests still run; only ingestion is prevented.
+
+#### `preflightCheck()` for true fail-fast
+
+For CI pipelines that need to abort before any tests run, use the exported `preflightCheck()` function in Playwright's `globalSetup`:
+
+```ts
+// playwright.config.ts
+import { preflightCheck } from "@llmassert/playwright";
+
+export default defineConfig({
+  globalSetup: async () => {
+    await preflightCheck({
+      apiKey: process.env.LLMASSERT_API_KEY!,
+      projectSlug: "my-project",
+      // dashboardUrl: 'https://llmassert.com', // optional, default shown
+    });
+  },
+  reporter: [
+    [
+      "@llmassert/playwright/reporter",
+      {
+        projectSlug: "my-project",
+        apiKey: process.env.LLMASSERT_API_KEY,
+      },
+    ],
+  ],
+});
+```
+
+`preflightCheck()` **throws** on any failure (invalid key, project mismatch, quota exceeded, network error). Since `globalSetup` runs before the reporter lifecycle, its errors are not swallowed — the test suite halts immediately.
+
+Alternatively, import from the dedicated subpath:
+
+```ts
+import { preflightCheck } from "@llmassert/playwright/preflight";
+```
+
+#### Version skew handling
+
+If your dashboard deployment predates the pre-flight endpoint, the reporter receives a 404 and treats it as a non-fatal "dashboard too old" signal — tests and ingestion proceed normally. No action required.
+
+---
+
 ## Reporter Config Comparison
 
 This table shows every configuration option, which reporter supports it, and when it was introduced.
@@ -185,6 +256,8 @@ This table shows every configuration option, which reporter supports it, and whe
 | `onThresholdFetchError` | `'warn' \| 'throw' \| 'silent'` | Supported     | —             | `'warn'`                                | 0.1.0 |
 | `onQuotaExhausted`      | `'warn' \| 'fail'`              | Supported     | —             | `'warn'`                                | 0.4.0 |
 | `metadata`              | `Record<string, unknown>`       | Supported     | Supported     | —                                       | 0.1.0 |
+| `preflight`             | `'warn' \| 'fail' \| false`     | Supported     | —             | `'warn'`                                | 0.6.0 |
+| `preflightTimeout`      | `number`                        | Supported     | —             | `5000`                                  | 0.6.0 |
 | `outputFile`            | `string`                        | —             | Supported     | `'test-results/llmassert-results.json'` | 0.3.0 |
 
 ¹ Omitting `apiKey` enables local-only mode — evaluations are collected and assertions work normally, but results are not sent to the dashboard.
@@ -376,6 +449,8 @@ These lines are prefixed with `[LLMAssert]` and are intended for human consumpti
 | `[LLMAssert] Warning: Payload too large: X MB exceeds Y MB limit…` | HTTP 413 from ingest API               | HTTP     |
 | `[LLMAssert] Warning: Invalid evaluation attachment in test "…"`   | Malformed attachment (e.g., score: -1) | Both     |
 | `[LLMAssert] Warning: Ingest failed with status NNN: …`            | Non-retryable ingest error             | HTTP     |
+| `[LLMAssert] Preflight: X/Y evaluations used (plan). Z remaining.` | Pre-flight quota warning               | HTTP     |
+| `[LLMAssert] Warning: Preflight check failed: …`                   | Pre-flight auth/network failure        | HTTP     |
 
 ### Structured JSON events (`process.stderr`)
 
@@ -385,6 +460,9 @@ These lines are newline-delimited JSON objects with no `[LLMAssert]` prefix. The
 | ------------------------------------ | ----------------------------- |
 | `reporter.quota_exceeded`            | HTTP 429 from ingest API      |
 | `reporter.payload_too_large`         | HTTP 413 from ingest API      |
+| `reporter.preflight_ok`              | Pre-flight check succeeded    |
+| `reporter.preflight_failed`          | Pre-flight check failed       |
+| `reporter.preflight_skipped`         | Pre-flight check skipped      |
 | `input.rejected.too_long`            | Input exceeds `maxInputChars` |
 | `input.rejected.injection_suspected` | Prompt injection detected     |
 | `judge.rate_limited`                 | Rate limit backoff triggered  |

@@ -20,7 +20,11 @@ test.describe("Reporter batching", () => {
   test("sends evaluations in batches", async () => {
     mockFetch([{ status: 200 }]);
 
-    const reporter = createReporter({ apiKey: "sk-test-mock", batchSize: 2 });
+    const reporter = createReporter({
+      apiKey: "sk-test-mock",
+      preflight: false,
+      batchSize: 2,
+    });
     reporter.begin();
     for (let i = 0; i < 5; i++) {
       reporter.onTestEnd(
@@ -37,7 +41,11 @@ test.describe("Reporter batching", () => {
   test("sends single batch when count <= batchSize", async () => {
     mockFetch([{ status: 200 }]);
 
-    const reporter = createReporter({ apiKey: "sk-test-mock", batchSize: 50 });
+    const reporter = createReporter({
+      apiKey: "sk-test-mock",
+      preflight: false,
+      batchSize: 50,
+    });
     reporter.begin();
     reporter.onTestEnd(
       makeTestCase("test-1"),
@@ -55,7 +63,10 @@ test.describe("Reporter batching", () => {
   test("skips ingestion when no evaluations collected", async () => {
     mockFetch([{ status: 200 }]);
 
-    const reporter = createReporter({ apiKey: "sk-test-mock" });
+    const reporter = createReporter({
+      apiKey: "sk-test-mock",
+      preflight: false,
+    });
     reporter.begin();
     await reporter.end();
 
@@ -67,6 +78,7 @@ test.describe("Reporter batching", () => {
 
     const reporter = createReporter({
       apiKey: "sk-test-mock",
+      preflight: false,
       projectSlug: "my-project",
     });
     reporter.begin();
@@ -96,6 +108,7 @@ test.describe("Reporter batching", () => {
 
     const reporter = createReporter({
       apiKey: "sk-test-mock",
+      preflight: false,
       batchSize: 2,
     });
     reporter.begin();

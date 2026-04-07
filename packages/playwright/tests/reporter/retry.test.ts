@@ -21,6 +21,7 @@ test.describe("Reporter retry", () => {
 
     const reporter = createReporter({
       apiKey: "sk-test-mock",
+      preflight: false,
       retries: 1,
       onError: "silent",
     });
@@ -42,6 +43,7 @@ test.describe("Reporter retry", () => {
 
     const reporter = createReporter({
       apiKey: "sk-test-mock",
+      preflight: false,
       retries: 1,
       onError: "silent",
     });

@@ -14,10 +14,12 @@ import {
 import type {
   EvaluationRecord,
   IngestPayload,
+  PreflightResult,
   QuotaExceededInfo,
   ReporterConfig,
 } from "./types.js";
 import { log } from "./logger.js";
+import { PreflightClient } from "./preflight/client.js";
 
 /**
  * Custom Playwright reporter that sends evaluation results to the LLMAssert dashboard.
@@ -38,6 +40,7 @@ class LLMAssertReporter implements Reporter {
   private evaluations: EvaluationRecord[] = [];
   private startedAt: string = "";
   private quotaExhausted: boolean = false;
+  private preflightPromise: Promise<PreflightResult> | null = null;
 
   constructor(options: ReporterConfig) {
     this.config = {
@@ -47,6 +50,8 @@ class LLMAssertReporter implements Reporter {
       retries: 1,
       onError: "warn",
       onQuotaExhausted: "warn",
+      preflight: "warn",
+      preflightTimeout: 5_000,
       ...options,
     };
   }
@@ -55,6 +60,25 @@ class LLMAssertReporter implements Reporter {
     this.startedAt = new Date().toISOString();
     this.evaluations = [];
     this.quotaExhausted = false;
+    this.preflightPromise = null;
+
+    if (
+      this.config.apiKey &&
+      this.config.projectSlug &&
+      this.config.preflight !== false
+    ) {
+      const client = new PreflightClient({
+        dashboardUrl: this.config.dashboardUrl ?? "https://llmassert.com",
+        apiKey: this.config.apiKey,
+        projectSlug: this.config.projectSlug,
+        timeout: this.config.preflightTimeout,
+      });
+      this.preflightPromise = client.fetch();
+    } else {
+      log("debug", "reporter.preflight_skipped", {
+        reason: this.config.apiKey ? "disabled" : "no_api_key",
+      });
+    }
   }
 
   onTestEnd(test: TestCase, result: TestResult) {
@@ -87,6 +111,29 @@ class LLMAssertReporter implements Reporter {
     if (!this.config.apiKey) {
       // No API key — local-only mode, skip ingestion silently
       return;
+    }
+
+    // Log cost summary before any early-return (visible even if preflight skips batches)
+    if (this.evaluations.length > 0) {
+      const totalCost = this.evaluations.reduce(
+        (sum, e) => sum + (e.judgeCostUsd ?? 0),
+        0,
+      );
+      const evalsWithCost = this.evaluations.filter(
+        (e) => e.judgeCostUsd !== undefined,
+      ).length;
+      if (evalsWithCost > 0) {
+        console.error(
+          `[LLMAssert] Judge cost: $${totalCost.toFixed(6)} across ${evalsWithCost}/${this.evaluations.length} evaluations`,
+        );
+      }
+    }
+
+    // Await preflight result before sending batches
+    if (this.preflightPromise) {
+      const preflightResult = await this.preflightPromise;
+      const shouldSkip = this.handlePreflightResult(preflightResult);
+      if (shouldSkip) return;
     }
 
     if (this.evaluations.length === 0) {
@@ -148,20 +195,6 @@ class LLMAssertReporter implements Reporter {
         failure_reason: e.failureReason,
       })),
     };
-
-    // Log run cost summary before sending (visible even if all batches are rejected)
-    const totalCost = this.evaluations.reduce(
-      (sum, e) => sum + (e.judgeCostUsd ?? 0),
-      0,
-    );
-    const evalsWithCost = this.evaluations.filter(
-      (e) => e.judgeCostUsd !== undefined,
-    ).length;
-    if (evalsWithCost > 0) {
-      console.error(
-        `[LLMAssert] Judge cost: $${totalCost.toFixed(6)} across ${evalsWithCost}/${this.evaluations.length} evaluations`,
-      );
-    }
 
     // Send in batches
     const batchSize = this.config.batchSize!;
@@ -254,6 +287,77 @@ class LLMAssertReporter implements Reporter {
         this.handleError(finalAttemptErrorMessage);
       }
     }
+  }
+
+  /**
+   * Process the preflight result. Returns true if batch sending should be skipped.
+   */
+  private handlePreflightResult(result: PreflightResult): boolean {
+    // Error result (auth failure, network error, timeout)
+    if ("error" in result) {
+      log("warn", "reporter.preflight_failed", {
+        latency_ms: result.latencyMs,
+        reason: result.error,
+        status_code: result.statusCode,
+      });
+
+      const message = `Preflight check failed: ${result.error}`;
+
+      if (this.config.preflight === "fail") {
+        throw new Error(`[LLMAssert] ${message}`);
+      }
+
+      // For auth/project failures (401, 403, 404), skip ingestion — it would fail anyway
+      if (
+        result.statusCode === 401 ||
+        result.statusCode === 403 ||
+        result.statusCode === 404
+      ) {
+        console.error(`[LLMAssert] Warning: ${message}. Skipping ingestion.`);
+        return true;
+      }
+
+      // For network errors (statusCode 0) and other failures, still attempt ingestion
+      console.error(`[LLMAssert] Warning: ${message}`);
+      return false;
+    }
+
+    // Success result — check status before logging preflight_ok
+    if (result.status === "quota_exceeded") {
+      log("warn", "reporter.preflight_failed", {
+        latency_ms: result.latencyMs,
+        reason: "quota_exceeded",
+        status_code: 200,
+      });
+      this.handleQuotaExhausted(
+        {
+          evaluations_used: result.quota.evaluations_used,
+          evaluation_limit: result.quota.evaluation_limit,
+          plan: result.quota.plan,
+        },
+        this.evaluations.length,
+        0,
+      );
+      // handleQuotaExhausted throws in 'fail' mode, otherwise returns
+      return true;
+    }
+
+    log("debug", "reporter.preflight_ok", {
+      latency_ms: result.latencyMs,
+      status: result.status,
+      quota_used: result.quota.evaluations_used,
+      quota_limit: result.quota.evaluation_limit,
+    });
+
+    if (result.status === "quota_warning") {
+      const { evaluations_used, evaluation_limit, plan } = result.quota;
+      const remaining = evaluation_limit - evaluations_used;
+      console.error(
+        `[LLMAssert] Preflight: ${evaluations_used}/${evaluation_limit} evaluations used (${plan} plan). ${remaining} remaining.`,
+      );
+    }
+
+    return false;
   }
 
   private handleQuotaExhausted(

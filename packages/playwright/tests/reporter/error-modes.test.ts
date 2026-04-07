@@ -22,6 +22,7 @@ test.describe("Reporter error modes", () => {
 
     const reporter = createReporter({
       apiKey: "sk-test-mock",
+      preflight: false,
       retries: 0,
       onError: "throw",
     });
@@ -43,6 +44,7 @@ test.describe("Reporter error modes", () => {
 
     const reporter = createReporter({
       apiKey: "sk-test-mock",
+      preflight: false,
       retries: 0,
       onError: "warn",
     });
@@ -66,6 +68,7 @@ test.describe("Reporter error modes", () => {
 
     const reporter = createReporter({
       apiKey: "sk-test-mock",
+      preflight: false,
       retries: 0,
       onError: "silent",
     });
@@ -94,6 +97,7 @@ test.describe("Reporter 429 quota exhaustion", () => {
 
     const reporter = createReporter({
       apiKey: "sk-test-mock",
+      preflight: false,
       retries: 0,
     });
     reporter.begin();
@@ -124,6 +128,7 @@ test.describe("Reporter 429 quota exhaustion", () => {
 
     const reporter = createReporter({
       apiKey: "sk-test-mock",
+      preflight: false,
       retries: 3,
     });
     reporter.begin();
@@ -148,6 +153,7 @@ test.describe("Reporter 429 quota exhaustion", () => {
 
     const reporter = createReporter({
       apiKey: "sk-test-mock",
+      preflight: false,
       retries: 0,
       onQuotaExhausted: "fail",
     });
@@ -173,6 +179,7 @@ test.describe("Reporter 429 quota exhaustion", () => {
 
     const reporter = createReporter({
       apiKey: "sk-test-mock",
+      preflight: false,
       retries: 0,
     });
     reporter.begin();

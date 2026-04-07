@@ -6,6 +6,7 @@ export default defineConfig({
     "src/reporter.ts",
     "src/fixtures.ts",
     "src/json-reporter.ts",
+    "src/preflight/check.ts",
   ],
   format: ["cjs", "esm"],
   dts: true,

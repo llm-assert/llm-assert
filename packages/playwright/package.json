@@ -46,6 +46,16 @@
         "types": "./dist/fixtures.d.cts",
         "default": "./dist/fixtures.cjs"
       }
+    },
+    "./preflight": {
+      "import": {
+        "types": "./dist/preflight/check.d.ts",
+        "default": "./dist/preflight/check.js"
+      },
+      "require": {
+        "types": "./dist/preflight/check.d.cts",
+        "default": "./dist/preflight/check.cjs"
+      }
     }
   },
   "files": [
