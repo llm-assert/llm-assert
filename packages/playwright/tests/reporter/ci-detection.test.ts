@@ -24,7 +24,10 @@ test.describe("Reporter CI detection", () => {
 
     mockFetch([{ status: 200 }]);
 
-    const reporter = createReporter({ apiKey: "sk-test-mock" });
+    const reporter = createReporter({
+      apiKey: "sk-test-mock",
+      preflight: false,
+    });
     reporter.begin();
     reporter.onTestEnd(
       makeTestCase("test"),

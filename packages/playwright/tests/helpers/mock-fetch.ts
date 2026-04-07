@@ -70,6 +70,41 @@ export function build413Response(overrides?: {
   };
 }
 
+export function buildPreflightOkResponse(overrides?: {
+  status?: "ok" | "quota_warning" | "quota_exceeded";
+  evaluations_used?: number;
+  evaluation_limit?: number;
+  plan?: string;
+}): MockFetchResponse {
+  return {
+    status: 200,
+    body: JSON.stringify({
+      data: {
+        status: overrides?.status ?? "ok",
+        project: { slug: "test", name: "Test Project" },
+        quota: {
+          evaluations_used: overrides?.evaluations_used ?? 10,
+          evaluation_limit: overrides?.evaluation_limit ?? 100,
+          plan: overrides?.plan ?? "free",
+        },
+      },
+    }),
+  };
+}
+
+export function buildPreflightErrorResponse(
+  statusCode: number,
+  code: string,
+  message: string,
+): MockFetchResponse {
+  return {
+    status: statusCode,
+    body: JSON.stringify({
+      error: { code, message },
+    }),
+  };
+}
+
 export function getFetchCalls(): FetchCall[] {
   return calls;
 }

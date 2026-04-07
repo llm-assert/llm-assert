@@ -107,7 +107,25 @@ export interface ReporterConfig {
   onQuotaExhausted?: "warn" | "fail";
   /** Arbitrary metadata attached to the run */
   metadata?: Record<string, unknown>;
+  /** Pre-flight check mode (default: 'warn') */
+  preflight?: "warn" | "fail" | false;
+  /** Pre-flight request timeout in ms (default: 5000) */
+  preflightTimeout?: number;
 }
+
+/** Result of a pre-flight health check */
+export type PreflightResult =
+  | {
+      status: "ok" | "quota_warning" | "quota_exceeded";
+      project: { slug: string; name: string };
+      quota: {
+        evaluations_used: number;
+        evaluation_limit: number;
+        plan: string;
+      };
+      latencyMs: number;
+    }
+  | { error: string; statusCode: number; latencyMs: number };
 
 /** Quota exhaustion details parsed from the ingest API 429 response */
 export interface QuotaExceededInfo {

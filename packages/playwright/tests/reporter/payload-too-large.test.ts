@@ -28,6 +28,7 @@ test.describe("Reporter 413 payload too large", () => {
 
     const reporter = createReporter({
       apiKey: "sk-test-mock",
+      preflight: false,
       retries: 3,
     });
     reporter.begin();
@@ -55,6 +56,7 @@ test.describe("Reporter 413 payload too large", () => {
 
     const reporter = createReporter({
       apiKey: "sk-test-mock",
+      preflight: false,
       retries: 0,
       onError: "warn",
     });
@@ -82,6 +84,7 @@ test.describe("Reporter 413 payload too large", () => {
 
     const reporter = createReporter({
       apiKey: "sk-test-mock",
+      preflight: false,
       retries: 0,
       onError: "throw",
     });
@@ -108,6 +111,7 @@ test.describe("Reporter 413 payload too large", () => {
 
     const reporter = createReporter({
       apiKey: "sk-test-mock",
+      preflight: false,
       retries: 0,
       batchSize: 1,
       onError: "warn",

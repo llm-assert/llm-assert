@@ -17,6 +17,7 @@ export type {
   HardenedResult,
   JudgeConfig,
   JSONReporterConfig,
+  PreflightResult,
   ReporterConfig,
   EvaluationRecord,
   LLMAssertFixture,
@@ -32,6 +33,8 @@ export {
   type JudgeEvaluator,
   type Clock,
 } from "./judge/client.js";
+export { preflightCheck } from "./preflight/check.js";
+export type { PreflightCheckConfig } from "./preflight/check.js";
 
 /** Attach evaluation data for the reporter to collect via result.attachments */
 async function attachEvaluation(
