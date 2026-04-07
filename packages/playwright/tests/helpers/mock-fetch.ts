@@ -51,6 +51,25 @@ export function build429Response(overrides?: {
   };
 }
 
+export function build413Response(overrides?: {
+  max_bytes?: number;
+  actual_bytes?: number;
+}): MockFetchResponse {
+  return {
+    status: 413,
+    body: JSON.stringify({
+      error: {
+        code: "PAYLOAD_TOO_LARGE",
+        message: "Request body exceeds 1 MB size limit",
+        details: {
+          max_bytes: overrides?.max_bytes ?? 1_048_576,
+          actual_bytes: overrides?.actual_bytes ?? 1_500_000,
+        },
+      },
+    }),
+  };
+}
+
 export function getFetchCalls(): FetchCall[] {
   return calls;
 }

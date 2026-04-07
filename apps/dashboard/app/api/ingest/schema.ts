@@ -24,9 +24,9 @@ const EvaluationSchema = z
     assertion_type: z.enum(ASSERTION_TYPES),
     test_name: z.string().min(1).max(500),
     test_file: z.string().max(1000).optional(),
-    input_text: z.string().min(1),
-    context_text: z.string().optional(),
-    expected_value: z.string().optional(),
+    input_text: z.string().min(1).max(50_000),
+    context_text: z.string().max(100_000).optional(),
+    expected_value: z.string().max(50_000).optional(),
     result: z.enum(EVALUATION_RESULTS),
     score: z.number().min(0).max(1).nullable(),
     reasoning: z.string().min(1).max(5000),
@@ -65,7 +65,15 @@ export const IngestPayloadSchema = z.object({
     ci_run_url: z.string().url().max(2000).optional(),
     branch: z.string().max(500).optional(),
     commit_sha: z.string().max(100).optional(),
-    metadata: z.record(z.string(), z.unknown()).optional(),
+    metadata: z
+      .record(z.string(), z.unknown())
+      .refine((m) => Object.keys(m).length <= 50, {
+        message: "metadata must have at most 50 keys",
+      })
+      .refine((m) => Buffer.byteLength(JSON.stringify(m), "utf8") <= 100_000, {
+        message: "metadata must not exceed 100 KB when serialized",
+      })
+      .optional(),
     hardening_summary: z
       .object({
         total_input_rejected: z.number().nonnegative(),

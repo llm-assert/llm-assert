@@ -189,6 +189,11 @@ class LLMAssertReporter implements Reporter {
     for (let attempt = 0; attempt <= retries; attempt++) {
       let quotaInfo: QuotaExceededInfo | undefined;
       let is429 = false;
+      let is413 = false;
+      let payloadSizeInfo:
+        | { max_bytes?: number; actual_bytes?: number }
+        | undefined;
+      let finalAttemptErrorMessage: string | undefined;
 
       try {
         const response = await fetch(url, {
@@ -203,8 +208,17 @@ class LLMAssertReporter implements Reporter {
 
         if (response.ok) return;
 
-        // Quota exhaustion — parse details, handle outside try/catch
-        if (response.status === 429) {
+        // Payload too large — non-retryable, parse details
+        if (response.status === 413) {
+          is413 = true;
+          try {
+            const body = await response.json();
+            payloadSizeInfo = body?.error?.details;
+          } catch {
+            // Response body not parseable
+          }
+          // Quota exhaustion — parse details, handle outside try/catch
+        } else if (response.status === 429) {
           is429 = true;
           try {
             const body = await response.json();
@@ -213,19 +227,20 @@ class LLMAssertReporter implements Reporter {
             // Response body not parseable — quotaInfo stays undefined
           }
         } else if (attempt === retries) {
-          this.handleError(
-            `Ingest failed with status ${response.status}: ${await response.text()}`,
-          );
+          finalAttemptErrorMessage = `Ingest failed with status ${response.status}: ${await response.text()}`;
         }
       } catch (error) {
         if (attempt === retries) {
-          this.handleError(
-            `Ingest request failed: ${error instanceof Error ? error.message : String(error)}`,
-          );
+          finalAttemptErrorMessage = `Ingest request failed: ${error instanceof Error ? error.message : String(error)}`;
         }
       }
 
-      // Handle quota exhaustion outside try/catch so throws propagate cleanly
+      // Handle all error types outside try/catch so throws propagate cleanly
+      if (is413) {
+        this.handlePayloadTooLarge(payloadSizeInfo, payload.evaluations.length);
+        return; // only reached in 'warn'/'silent' mode
+      }
+
       if (is429) {
         this.handleQuotaExhausted(
           quotaInfo,
@@ -233,6 +248,10 @@ class LLMAssertReporter implements Reporter {
           batchesRemaining,
         );
         return; // only reached in 'warn' mode
+      }
+
+      if (finalAttemptErrorMessage) {
+        this.handleError(finalAttemptErrorMessage);
       }
     }
   }
@@ -279,6 +298,32 @@ class LLMAssertReporter implements Reporter {
         console.error(message);
         break;
     }
+  }
+
+  private handlePayloadTooLarge(
+    info: { max_bytes?: number; actual_bytes?: number } | undefined,
+    batchSize: number,
+  ): void {
+    const maxMB = info?.max_bytes
+      ? (info.max_bytes / 1024 / 1024).toFixed(1)
+      : "?";
+    const actualMB = info?.actual_bytes
+      ? (info.actual_bytes / 1024 / 1024).toFixed(2)
+      : "?";
+
+    const message =
+      `Payload too large: ${actualMB} MB exceeds ${maxMB} MB limit` +
+      ` (${batchSize} evaluations in batch).` +
+      ` Try reducing batchSize in reporter config.`;
+
+    // Structured log for machine parsing
+    log("warn", "reporter.payload_too_large", {
+      max_bytes: info?.max_bytes,
+      actual_bytes: info?.actual_bytes,
+      batch_size: batchSize,
+    });
+
+    this.handleError(message);
   }
 
   private handleError(message: string): void {

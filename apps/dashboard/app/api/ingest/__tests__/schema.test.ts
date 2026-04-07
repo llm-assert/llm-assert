@@ -155,6 +155,96 @@ describe("IngestPayloadSchema", () => {
     });
   });
 
+  describe("text field max length bounds", () => {
+    it("accepts input_text at 50,000 chars", () => {
+      const payload = buildIngestPayload({
+        evaluations: [{ input_text: "a".repeat(50_000) }],
+      });
+      const result = IngestPayloadSchema.safeParse(payload);
+      expect(result.success).toBe(true);
+    });
+
+    it("rejects input_text at 50,001 chars", () => {
+      const payload = buildIngestPayload({
+        evaluations: [{ input_text: "a".repeat(50_001) }],
+      });
+      const result = IngestPayloadSchema.safeParse(payload);
+      expect(result.success).toBe(false);
+    });
+
+    it("accepts context_text at 100,000 chars", () => {
+      const payload = buildIngestPayload({
+        evaluations: [{ context_text: "a".repeat(100_000) }],
+      });
+      const result = IngestPayloadSchema.safeParse(payload);
+      expect(result.success).toBe(true);
+    });
+
+    it("rejects context_text at 100,001 chars", () => {
+      const payload = buildIngestPayload({
+        evaluations: [{ context_text: "a".repeat(100_001) }],
+      });
+      const result = IngestPayloadSchema.safeParse(payload);
+      expect(result.success).toBe(false);
+    });
+
+    it("accepts expected_value at 50,000 chars", () => {
+      const payload = buildIngestPayload({
+        evaluations: [{ expected_value: "a".repeat(50_000) }],
+      });
+      const result = IngestPayloadSchema.safeParse(payload);
+      expect(result.success).toBe(true);
+    });
+
+    it("rejects expected_value at 50,001 chars", () => {
+      const payload = buildIngestPayload({
+        evaluations: [{ expected_value: "a".repeat(50_001) }],
+      });
+      const result = IngestPayloadSchema.safeParse(payload);
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe("metadata constraints", () => {
+    it("accepts metadata with 50 keys", () => {
+      const metadata: Record<string, string> = {};
+      for (let i = 0; i < 50; i++) metadata[`key${i}`] = "value";
+      const payload = buildIngestPayload({
+        run: { started_at: new Date().toISOString(), metadata },
+      });
+      const result = IngestPayloadSchema.safeParse(payload);
+      expect(result.success).toBe(true);
+    });
+
+    it("rejects metadata with 51 keys", () => {
+      const metadata: Record<string, string> = {};
+      for (let i = 0; i < 51; i++) metadata[`key${i}`] = "value";
+      const payload = buildIngestPayload({
+        run: { started_at: new Date().toISOString(), metadata },
+      });
+      const result = IngestPayloadSchema.safeParse(payload);
+      expect(result.success).toBe(false);
+    });
+
+    it("accepts metadata under 100 KB serialized", () => {
+      const metadata: Record<string, string> = { data: "x".repeat(90_000) };
+      const payload = buildIngestPayload({
+        run: { started_at: new Date().toISOString(), metadata },
+      });
+      const result = IngestPayloadSchema.safeParse(payload);
+      expect(result.success).toBe(true);
+    });
+
+    it("rejects metadata over 100 KB serialized", () => {
+      const metadata: Record<string, string> = { data: "x".repeat(101_000) };
+      const payload = buildIngestPayload({
+        run: { started_at: new Date().toISOString(), metadata },
+      });
+      const result = IngestPayloadSchema.safeParse(payload);
+      expect(result.success).toBe(false);
+    });
+  });
+
   describe("threshold_source field", () => {
     it("accepts valid threshold_source values", () => {
       for (const source of ["inline", "remote", "default"]) {

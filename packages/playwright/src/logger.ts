@@ -7,7 +7,8 @@ export type LogEvent =
   | "judge.backoff"
   | "judge.provider_fallback"
   | "judge.parse_error"
-  | "reporter.quota_exceeded";
+  | "reporter.quota_exceeded"
+  | "reporter.payload_too_large";
 
 type LogLevel = "warn" | "error" | "debug";
 
