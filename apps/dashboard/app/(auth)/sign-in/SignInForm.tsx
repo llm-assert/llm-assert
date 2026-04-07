@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,8 +25,17 @@ export function SignInForm({ next }: SignInFormProps) {
     null,
   );
   const [oauthLoading, setOauthLoading] = useState(false);
+  const [oauthError, setOauthError] = useState<string | null>(null);
+  const oauthErrorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (oauthError && oauthErrorRef.current) {
+      oauthErrorRef.current.focus();
+    }
+  }, [oauthError]);
 
   async function handleGitHubSignIn() {
+    setOauthError(null);
     setOauthLoading(true);
     const supabase = createClient();
     const { data, error } = await supabase.auth.signInWithOAuth({
@@ -36,11 +45,23 @@ export function SignInForm({ next }: SignInFormProps) {
       },
     });
     if (error) {
+      console.error("[oauth/github]", {
+        message: error.message,
+        status: error.status,
+      });
+      setOauthError(
+        "Couldn't connect to GitHub. Please try again or sign in with email.",
+      );
       setOauthLoading(false);
       return;
     }
     if (data.url) {
       window.location.href = data.url;
+    } else {
+      setOauthError(
+        "Couldn't connect to GitHub. Please try again or sign in with email.",
+      );
+      setOauthLoading(false);
     }
   }
 
@@ -71,6 +92,21 @@ export function SignInForm({ next }: SignInFormProps) {
           {oauthLoading ? "Redirecting..." : "Continue with GitHub"}
         </Button>
 
+        <div
+          ref={oauthErrorRef}
+          tabIndex={-1}
+          role="alert"
+          aria-atomic="true"
+          className="outline-none"
+          data-testid="sign-in-form-oauth-error"
+        >
+          {oauthError && (
+            <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground">
+              {oauthError}
+            </div>
+          )}
+        </div>
+
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
             <span className="w-full border-t" />
@@ -85,6 +121,7 @@ export function SignInForm({ next }: SignInFormProps) {
           {state?.error && (
             <div
               role="alert"
+              data-testid="sign-in-form-email-error"
               className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground"
             >
               {state.error}
