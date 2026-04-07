@@ -8,23 +8,17 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import type { PlanName } from "@/lib/plans.client";
+import type { PlanName, PlanDisplay } from "@/lib/plans.client";
 import { BillingActions } from "./billing-actions";
 
-type PlanCardData = {
-  name: PlanName;
-  label: string;
-  evaluationLimit: number;
-  projectsLimit: number;
-  priceId: string | null;
-};
+type BillingPlanCard = PlanDisplay & { priceId: string | null };
 
 export function PlanCards({
   plans,
   currentPlan,
   subscriptionStatus,
 }: {
-  plans: PlanCardData[];
+  plans: BillingPlanCard[];
   currentPlan: PlanName;
   subscriptionStatus: "active" | "past_due" | "canceled" | null;
 }) {
