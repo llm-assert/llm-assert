@@ -43,7 +43,8 @@ supabase/migrations/     # Postgres DDL with RLS
 ## DO
 
 - Use `@supabase/ssr` `createServerClient` / `createBrowserClient` (NOT deprecated `@supabase/auth-helpers-nextjs`)
-- Wrap `auth.uid()` as `(select auth.uid())` in RLS policies for performance
+- Wrap `auth.uid()` as `(select auth.uid())` in RLS policies and RPC ownership checks for performance
+- Add `.eq("user_id", userId)` to authenticated dashboard queries as a planner hint (RLS remains the security boundary — the filter helps Postgres use the `user_id` index). Source `userId` from `supabase.auth.getUser()` only
 - Use structured JSON response format in all judge prompts: `{"score": <number>, "reasoning": "<string>"}`
 - Handle judge timeout (>10s) as `inconclusive`, not `fail`
 - Use route groups `(auth)` and `(dashboard)` for layout separation
@@ -59,3 +60,4 @@ supabase/migrations/     # Postgres DDL with RLS
 - Don't block the test suite on ingest failures — reporter uses `onError: 'warn'` by default
 - Don't hardcode judge model names — use the configurable fallback chain
 - Don't use snapshot tests
+- Don't add `.eq("user_id")` to service_role/admin queries (ingest, webhooks, crons) — they bypass RLS intentionally

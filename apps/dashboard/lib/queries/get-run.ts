@@ -17,13 +17,15 @@ export const getRun = cache(async (runId: string, projectId: string) => {
 });
 
 export const getRunAvgScore = cache(
-  async (runId: string): Promise<number | null> => {
+  async (runId: string, userId: string): Promise<number | null> => {
     const supabase = await createClient();
 
     const { data } = await supabase
       .from("evaluations")
       .select("avg_score:score.avg()")
-      .eq("test_run_id", runId);
+      .eq("test_run_id", runId)
+      // RLS perf hint — not a security boundary (see CLAUDE.md)
+      .eq("user_id", userId);
 
     if (!data || data.length === 0) return null;
 

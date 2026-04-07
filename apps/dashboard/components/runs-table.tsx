@@ -24,10 +24,12 @@ const PER_PAGE = 25;
 export async function RunsTable({
   projectId,
   projectSlug,
+  userId,
   page,
 }: {
   projectId: string;
   projectSlug: string;
+  userId: string;
   page: number;
 }) {
   const supabase = await createClient();
@@ -46,6 +48,8 @@ export async function RunsTable({
       { count: "exact" },
     )
     .eq("project_id", projectId)
+    // RLS perf hint — not a security boundary (see CLAUDE.md)
+    .eq("user_id", userId)
     .order("started_at", { ascending: false })
     .range(from, to);
 

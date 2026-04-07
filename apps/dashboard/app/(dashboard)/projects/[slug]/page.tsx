@@ -1,5 +1,6 @@
 import { Suspense } from "react";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 import { getProject } from "@/lib/queries/get-project";
 import { getProjectTrends } from "@/lib/queries/get-project-trends";
 import { getAssertionBreakdown } from "@/lib/queries/get-assertion-breakdown";
@@ -21,6 +22,12 @@ export default async function ProjectOverviewPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/sign-in");
 
   const project = await getProject(slug);
 
@@ -78,7 +85,11 @@ export default async function ProjectOverviewPage({
         </div>
 
         <Suspense fallback={<RecentRunsTableSkeleton />}>
-          <RecentRunsTable projectId={project.id} projectSlug={project.slug} />
+          <RecentRunsTable
+            projectId={project.id}
+            projectSlug={project.slug}
+            userId={user.id}
+          />
         </Suspense>
       </div>
     </>

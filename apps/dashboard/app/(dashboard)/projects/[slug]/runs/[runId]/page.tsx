@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 import { getProject } from "@/lib/queries/get-project";
 import { getRun, getRunAvgScore } from "@/lib/queries/get-run";
 import { validateType, validateResult } from "@/lib/queries/get-evaluations";
@@ -55,6 +56,12 @@ export default async function RunDetailPage({
   const { slug, runId } = await params;
   const sp = await searchParams;
 
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/sign-in");
+
   const ctx = await resolveRunContext(slug, runId);
   if (!ctx) {
     notFound();
@@ -65,7 +72,7 @@ export default async function RunDetailPage({
   const type = validateType(sp.type);
   const result = validateResult(sp.result);
   const page = Math.max(1, Math.floor(Number(sp.page) || 1));
-  const avgScore = await getRunAvgScore(run.id);
+  const avgScore = await getRunAvgScore(run.id, user.id);
 
   const runLabel = run.commit_sha
     ? run.commit_sha.slice(0, 7)
@@ -89,6 +96,7 @@ export default async function RunDetailPage({
         <Suspense fallback={<EvaluationsTableSkeleton />}>
           <EvaluationsTable
             runId={run.id}
+            userId={user.id}
             projectSlug={project.slug}
             filters={{ type, result }}
             page={page}
