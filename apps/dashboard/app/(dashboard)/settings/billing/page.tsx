@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getSubscription } from "@/lib/supabase/queries/subscription";
 import { PLANS } from "@/lib/plans";
 import type { PlanName } from "@/lib/plans.client";
-import { getPlanDisplay } from "@/lib/plans.client";
+import { getPlanDisplay, PLAN_DISPLAY } from "@/lib/plans.client";
 import { SubscriptionStatus } from "@/components/billing/subscription-status";
 import { UsageMeter } from "@/components/billing/usage-meter";
 import { PlanCards } from "@/components/billing/plan-cards";
@@ -43,16 +43,22 @@ export default async function BillingPage({
     | null;
 
   // Build plan card data with priceIds from server-only PLANS config
+  // Merge display fields from PLAN_DISPLAY with server-only priceId from PLANS
   // Replace Infinity with -1 for JSON serialization across RSC boundary
-  const planCardData = Object.values(PLANS).map((plan) => ({
-    name: plan.name,
-    label: plan.label,
-    evaluationLimit: plan.evaluationLimit,
-    projectsLimit: Number.isFinite(plan.projectsLimit)
-      ? plan.projectsLimit
-      : -1,
-    priceId: plan.priceId,
-  }));
+  const planCardData = Object.values(PLANS).map((plan) => {
+    const display = PLAN_DISPLAY.find((d) => d.name === plan.name);
+    return {
+      name: plan.name,
+      label: plan.label,
+      displayPrice: display?.displayPrice ?? null,
+      evaluationLimit: plan.evaluationLimit,
+      projectsLimit: Number.isFinite(plan.projectsLimit)
+        ? plan.projectsLimit
+        : -1,
+      features: display?.features ?? [],
+      priceId: plan.priceId,
+    };
+  });
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
