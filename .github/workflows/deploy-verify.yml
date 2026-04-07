@@ -117,7 +117,14 @@ jobs:
 
       - name: "Tier 2: Unauthenticated E2E"
         env:
-          E2E_BASE_URL: ${{ github.event.deployment_status.target_url }}
+          # FEAT-106: Production deployments redirect *.vercel.app → custom domain,
+          # so E2E must use the custom domain URL. Preview deployments are unaffected.
+          E2E_BASE_URL: >-
+            ${{
+              startsWith(github.event.deployment_status.environment, 'Production')
+              && secrets.PRODUCTION_URL
+              || github.event.deployment_status.target_url
+            }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: pnpm exec playwright test --project=unauthenticated
         working-directory: apps/dashboard
@@ -174,7 +181,13 @@ jobs:
 
       - name: "Tier 3: Authenticated E2E"
         env:
-          E2E_BASE_URL: ${{ github.event.deployment_status.target_url }}
+          # FEAT-106: Use custom domain for production (*.vercel.app redirects)
+          E2E_BASE_URL: >-
+            ${{
+              startsWith(github.event.deployment_status.environment, 'Production')
+              && secrets.PRODUCTION_URL
+              || github.event.deployment_status.target_url
+            }}
           E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
           E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
