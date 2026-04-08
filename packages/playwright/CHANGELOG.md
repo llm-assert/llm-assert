@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.1
+
+### Patch Changes
+
+- [#99](https://github.com/llm-assert/llm-assert/pull/99) [`9d8ade0`](https://github.com/llm-assert/llm-assert/commit/9d8ade0b40d5b2514c3533fccf915b312b0df954) Thanks [@Cporter97](https://github.com/Cporter97)! - Add package export validation with attw, publint, runtime import/require checks, and type declaration verification
+
 ## 0.7.0
 
 ### Minor Changes
