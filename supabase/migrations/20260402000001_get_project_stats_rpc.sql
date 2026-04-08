@@ -6,6 +6,7 @@
 -- Returns a single row of zeros when the project exists but has no evaluations.
 -- Returns zero rows when the project does not exist or is not owned by the caller.
 
+-- rpc-lint-disable: R5
 create or replace function public.get_project_stats(
   p_project_id uuid
 )

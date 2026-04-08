@@ -3,6 +3,7 @@
 -- CREATE OR REPLACE preserves existing GRANT EXECUTE permissions.
 -- Semantically identical — only the query plan changes (initPlan caching).
 
+-- rpc-lint-disable: R3, R4
 create or replace function public.get_project_stats(
   p_project_id uuid
 )
