@@ -19,6 +19,7 @@ RETURNS TABLE (
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
+SET statement_timeout = '5s'
 AS $$
 DECLARE
   v_project_id uuid;

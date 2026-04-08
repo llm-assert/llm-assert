@@ -67,13 +67,12 @@ export async function createProjectAction(
   }
 
   // UX guard only — the RPC is the security boundary
-  const supabaseForCount = await createClient();
   const [{ count: projectCount }, { data: sub }] = await Promise.all([
-    supabaseForCount
+    supabase
       .from("projects")
       .select("*", { count: "exact", head: true })
       .eq("user_id", user.id),
-    supabaseForCount
+    supabase
       .from("subscriptions")
       .select("project_limit, plan")
       .eq("user_id", user.id)
@@ -150,6 +149,9 @@ export async function createProjectAction(
       source: "projects/create",
       event: "created",
       user_id: user.id,
+      plan: sub?.plan ?? "unknown",
+      projects_used: (projectCount ?? 0) + 1,
+      project_limit: limit,
       project_id: row.project_id,
     }),
   );

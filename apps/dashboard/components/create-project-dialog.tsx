@@ -104,12 +104,16 @@ export function CreateProjectDialog({
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <span tabIndex={0} data-testid="create-project-trigger-disabled">
-                <Button size="sm" disabled>
-                  <Plus className="size-4" />
-                  New Project
-                </Button>
-              </span>
+              <Button
+                size="sm"
+                aria-disabled="true"
+                className="pointer-events-auto opacity-50"
+                onClick={(e) => e.preventDefault()}
+                data-testid="create-project-trigger-disabled"
+              >
+                <Plus className="size-4" />
+                New Project
+              </Button>
             </TooltipTrigger>
             <TooltipContent>
               <p>
