@@ -143,6 +143,7 @@ async function handleCheckoutCompleted(
       plan: plan?.name ?? "starter",
       status: "active",
       evaluation_limit: plan?.evaluationLimit ?? 5_000,
+      project_limit: plan?.projectsLimit ?? 1,
     },
     { onConflict: "user_id" },
   );
@@ -187,6 +188,7 @@ async function handleSubscriptionUpdated(
         ? new Date(firstItem.current_period_end * 1000).toISOString()
         : null,
       evaluation_limit: plan?.evaluationLimit ?? 5_000,
+      project_limit: plan?.projectsLimit ?? 1,
     })
     .eq("stripe_customer_id", customerId);
 
@@ -210,6 +212,7 @@ async function handleSubscriptionDeleted(
       plan: "free",
       status: "active",
       evaluation_limit: PLANS.free.evaluationLimit,
+      project_limit: PLANS.free.projectsLimit,
       evaluations_used: 0,
       last_evaluations_reset_at: new Date().toISOString(),
       current_period_end: null,

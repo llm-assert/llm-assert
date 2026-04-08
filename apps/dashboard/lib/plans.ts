@@ -38,7 +38,7 @@ export const PLANS: Record<PlanName, PlanConfig> = {
     name: "team",
     label: "Team",
     evaluationLimit: 100_000,
-    projectsLimit: Infinity,
+    projectsLimit: -1, // -1 = unlimited (DB-safe sentinel, matches plans.client.ts)
     priceId: serverEnv.STRIPE_TEAM_PRICE_ID ?? null,
   },
 };

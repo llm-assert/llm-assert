@@ -118,10 +118,25 @@ vi.mock("@/lib/plans", () => ({
     },
   },
   planFromPriceId: (priceId: string) => {
-    const plans: Record<string, { name: string; evaluationLimit: number }> = {
-      price_starter_test: { name: "starter", evaluationLimit: 5000 },
-      price_pro_test: { name: "pro", evaluationLimit: 25000 },
-      price_team_test: { name: "team", evaluationLimit: 100000 },
+    const plans: Record<
+      string,
+      { name: string; evaluationLimit: number; projectsLimit: number }
+    > = {
+      price_starter_test: {
+        name: "starter",
+        evaluationLimit: 5000,
+        projectsLimit: 3,
+      },
+      price_pro_test: {
+        name: "pro",
+        evaluationLimit: 25000,
+        projectsLimit: 10,
+      },
+      price_team_test: {
+        name: "team",
+        evaluationLimit: 100000,
+        projectsLimit: -1,
+      },
     };
     return plans[priceId] ?? null;
   },
@@ -246,6 +261,7 @@ describe("POST /api/webhooks/stripe", () => {
           stripe_customer_id: "cus_123",
           stripe_subscription_id: "sub_123",
           status: "active",
+          project_limit: 3,
         }),
         { onConflict: "user_id" },
       );
@@ -271,6 +287,7 @@ describe("POST /api/webhooks/stripe", () => {
           plan: "starter",
           status: "active",
           evaluation_limit: 5000,
+          project_limit: 3,
         }),
         { onConflict: "user_id" },
       );
@@ -313,6 +330,7 @@ describe("POST /api/webhooks/stripe", () => {
         current_period_start: new Date(periodStart * 1000).toISOString(),
         current_period_end: new Date(periodEnd * 1000).toISOString(),
         evaluation_limit: 25000,
+        project_limit: 10,
       });
       expect(mockEq).toHaveBeenCalledWith("stripe_customer_id", "cus_updated");
     });
@@ -328,6 +346,7 @@ describe("POST /api/webhooks/stripe", () => {
         plan: "free",
         status: "active",
         evaluation_limit: 100,
+        project_limit: 1,
         evaluations_used: 0,
         last_evaluations_reset_at: expect.any(String),
         current_period_end: null,

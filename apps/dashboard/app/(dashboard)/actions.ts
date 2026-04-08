@@ -44,6 +44,7 @@ export type CreateProjectState = {
     | "invalid_name"
     | "invalid_slug"
     | "slug_taken"
+    | "project_limit_reached"
     | "unknown";
   slugError?: string;
   success?: boolean;
@@ -63,6 +64,33 @@ export async function createProjectAction(
 
   if (!user) {
     return { error: "unauthorized" };
+  }
+
+  // UX guard only — the RPC is the security boundary
+  const [{ count: projectCount }, { data: sub }] = await Promise.all([
+    supabase
+      .from("projects")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id),
+    supabase
+      .from("subscriptions")
+      .select("project_limit, plan")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+  ]);
+  const limit = sub?.project_limit ?? 1;
+  if (limit >= 0 && (projectCount ?? 0) >= limit) {
+    console.error(
+      JSON.stringify({
+        source: "projects/create",
+        event: "quota_exceeded",
+        user_id: user.id,
+        plan: sub?.plan ?? "unknown",
+        projects_used: projectCount ?? 0,
+        project_limit: limit,
+      }),
+    );
+    return { error: "project_limit_reached" };
   }
 
   const name = (formData.get("name") as string | null)?.trim() ?? "";
@@ -106,7 +134,27 @@ export async function createProjectAction(
     return { error: "slug_taken" };
   }
 
+  if (row?.status === "quota_exceeded") {
+    return { error: "project_limit_reached" };
+  }
+
+  if (row?.status === "no_subscription") {
+    return { error: "unauthorized" };
+  }
+
   revalidatePath("/", "page");
+
+  console.log(
+    JSON.stringify({
+      source: "projects/create",
+      event: "created",
+      user_id: user.id,
+      plan: sub?.plan ?? "unknown",
+      projects_used: (projectCount ?? 0) + 1,
+      project_limit: limit,
+      project_id: row.project_id,
+    }),
+  );
 
   return {
     success: true,

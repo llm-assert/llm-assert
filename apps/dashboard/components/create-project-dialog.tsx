@@ -7,7 +7,8 @@ import {
   useRef,
   useState,
 } from "react";
-import { Loader2, Plus } from "lucide-react";
+import Link from "next/link";
+import { AlertCircle, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,6 +21,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { KeyReveal } from "@/components/key-reveal";
 import {
   createProjectAction,
@@ -29,7 +37,11 @@ import { nameToSlug } from "@/lib/slugify";
 
 const initialState: CreateProjectState = {};
 
-export function CreateProjectDialog() {
+export function CreateProjectDialog({
+  atProjectQuota,
+}: {
+  atProjectQuota?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const [formKey, setFormKey] = useState(0);
   const [state, formAction, pending] = useActionState(
@@ -88,12 +100,42 @@ export function CreateProjectDialog() {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button size="sm">
-          <Plus className="size-4" />
-          New Project
-        </Button>
-      </DialogTrigger>
+      {atProjectQuota ? (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="sm"
+                aria-disabled="true"
+                className="pointer-events-auto opacity-50"
+                onClick={(e) => e.preventDefault()}
+                data-testid="create-project-trigger-disabled"
+              >
+                <Plus className="size-4" />
+                New Project
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>
+                You&apos;ve reached your plan&apos;s project limit.{" "}
+                <Link
+                  href="/settings/billing"
+                  className="underline font-medium"
+                >
+                  Upgrade
+                </Link>
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      ) : (
+        <DialogTrigger asChild>
+          <Button size="sm" data-testid="create-project-trigger">
+            <Plus className="size-4" />
+            New Project
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent
         key={formKey}
         showCloseButton={!isKeyReveal}
@@ -180,6 +222,27 @@ export function CreateProjectDialog() {
                   onChange={(e) => setDescValue(e.target.value)}
                 />
               </div>
+
+              {state.error === "project_limit_reached" && (
+                <Alert
+                  variant="destructive"
+                  role="alert"
+                  data-testid="create-project-error"
+                >
+                  <AlertCircle className="size-4" />
+                  <AlertTitle>Project limit reached</AlertTitle>
+                  <AlertDescription>
+                    You&apos;ve reached your plan&apos;s project limit.{" "}
+                    <Link
+                      href="/settings/billing"
+                      className="underline font-medium"
+                    >
+                      Upgrade your plan
+                    </Link>{" "}
+                    to create more projects.
+                  </AlertDescription>
+                </Alert>
+              )}
 
               {state.error === "unknown" && (
                 <p role="alert" className="text-sm text-destructive">
