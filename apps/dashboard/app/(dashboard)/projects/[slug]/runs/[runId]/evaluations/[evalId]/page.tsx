@@ -21,10 +21,10 @@ async function resolveEvaluationContext(
   const project = await getProject(slug, userId);
   if (!project) return null;
 
-  const run = await getRun(runId, project.id);
+  const run = await getRun(runId, project.id, userId);
   if (!run) return null;
 
-  const evaluation = await getEvaluation(evalId, run.id);
+  const evaluation = await getEvaluation(evalId, run.id, userId);
   if (!evaluation) return null;
 
   return { project, run, evaluation };

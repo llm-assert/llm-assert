@@ -1,20 +1,24 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 
-export const getRun = cache(async (runId: string, projectId: string) => {
-  const supabase = await createClient();
+export const getRun = cache(
+  async (runId: string, projectId: string, userId: string) => {
+    const supabase = await createClient();
 
-  const { data: run } = await supabase
-    .from("test_runs")
-    .select(
-      "id, project_id, started_at, finished_at, branch, commit_sha, ci_provider, ci_run_url, total_evaluations, passed, failed, inconclusive, metadata",
-    )
-    .eq("id", runId)
-    .eq("project_id", projectId)
-    .single();
+    const { data: run } = await supabase
+      .from("test_runs")
+      .select(
+        "id, project_id, started_at, finished_at, branch, commit_sha, ci_provider, ci_run_url, total_evaluations, passed, failed, inconclusive, metadata",
+      )
+      .eq("id", runId)
+      .eq("project_id", projectId)
+      // RLS perf hint — not a security boundary (see CLAUDE.md)
+      .eq("user_id", userId)
+      .single();
 
-  return run;
-});
+    return run;
+  },
+);
 
 export const getRunAvgScore = cache(
   async (runId: string, userId: string): Promise<number | null> => {
