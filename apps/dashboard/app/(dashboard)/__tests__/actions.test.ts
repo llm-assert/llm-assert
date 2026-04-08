@@ -5,6 +5,14 @@ import { createProjectAction, type CreateProjectState } from "../actions";
 // variables. All values must be inlined or use vi.hoisted().
 // ---------------------------------------------------------------------------
 
+vi.mock("server-only", () => ({}));
+
+const mockCheckRateLimit = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/rate-limit", () => ({
+  checkRateLimit: mockCheckRateLimit,
+  getMutationRateLimitConfig: () => ({ windowMs: 60_000, maxRequests: 5 }),
+}));
+
 const { mockGetUser, mockFrom, mockRpc } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
   mockFrom: vi.fn(),
@@ -116,6 +124,7 @@ const initialState: CreateProjectState = {};
 
 beforeEach(() => {
   vi.restoreAllMocks();
+  mockCheckRateLimit.mockResolvedValue({ limited: false, retryAfterSeconds: 0 });
 });
 
 describe("createProjectAction", () => {

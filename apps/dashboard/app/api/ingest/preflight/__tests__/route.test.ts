@@ -34,6 +34,13 @@ vi.mock("@/lib/supabase/admin", () => ({
   }),
 }));
 
+const mockCheckRateLimit = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/rate-limit", () => ({
+  checkRateLimit: mockCheckRateLimit,
+  getPreflightRateLimitConfig: () => ({ windowMs: 60_000, maxRequests: 60 }),
+  getClientIp: () => "1.2.3.4",
+}));
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -110,6 +117,7 @@ function mockNoSubscription() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockCheckRateLimit.mockResolvedValue({ limited: false, retryAfterSeconds: 0 });
 });
 
 describe("GET /api/ingest/preflight", () => {
@@ -248,6 +256,28 @@ describe("GET /api/ingest/preflight", () => {
 
     const res = await GET(makeRequest("my-project"));
     expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
+  });
+});
+
+describe("GET /api/ingest/preflight rate limiting", () => {
+  it("returns 429 with Retry-After when IP is rate limited", async () => {
+    mockCheckRateLimit.mockResolvedValue({ limited: true, retryAfterSeconds: 30 });
+
+    const res = await GET(makeRequest("my-project"));
+    expect(res.status).toBe(429);
+    expect(res.headers.get("Retry-After")).toBe("30");
+
+    const body = await res.json();
+    expect(body.error.code).toBe("RATE_LIMITED");
+  });
+
+  it("rate limit check runs before auth", async () => {
+    mockCheckRateLimit.mockResolvedValue({ limited: true, retryAfterSeconds: 10 });
+
+    const res = await GET(makeRequest("my-project", { noAuth: true }));
+    // Should be 429 (rate limited), not 401 (unauthorized)
+    expect(res.status).toBe(429);
+    expect(mockResolveAuth).not.toHaveBeenCalled();
   });
 });
 

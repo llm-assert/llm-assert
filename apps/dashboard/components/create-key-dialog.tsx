@@ -179,6 +179,12 @@ export function CreateKeyDialog({ projects }: { projects: Project[] }) {
                 </p>
               )}
 
+              {state.error === "rate_limited" && (
+                <p role="alert" className="text-sm text-destructive">
+                  Too many requests. Please wait a moment and try again.
+                </p>
+              )}
+
               {state.error === "unknown" && (
                 <p role="alert" className="text-sm text-destructive">
                   Something went wrong. Please try again.

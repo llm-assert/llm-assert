@@ -1,7 +1,7 @@
 # LLMAssert
 
 [![npm version](https://img.shields.io/npm/v/@llmassert/playwright)](https://www.npmjs.com/package/@llmassert/playwright)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: MIT + BSL](https://img.shields.io/badge/License-MIT%20%2B%20BSL--1.1-blue.svg)](#license)
 [![CI](https://github.com/llm-assert/llm-assert/actions/workflows/ci.yml/badge.svg)](https://github.com/llm-assert/llm-assert/actions/workflows/ci.yml)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue)](https://www.typescriptlang.org)
 [![Node](https://img.shields.io/node/v/@llmassert/playwright)](https://nodejs.org)
@@ -152,4 +152,9 @@ Want to contribute code?
 
 ## License
 
-[MIT](LICENSE)
+This repository uses a dual-license structure:
+
+- **[`packages/playwright/`](packages/playwright/LICENSE)** — [MIT License](https://opensource.org/licenses/MIT). The npm package `@llmassert/playwright` is free and open-source.
+- **[`apps/dashboard/`](apps/dashboard/LICENSE)** — [Business Source License 1.1](https://mariadb.com/bsl11/). The SaaS dashboard source is available for reading, internal use, and self-hosting, but may not be used to offer a competing hosted service. Converts to MIT on 2030-04-07.
+
+The root [LICENSE](LICENSE) file is MIT for backward compatibility with prior published versions.
