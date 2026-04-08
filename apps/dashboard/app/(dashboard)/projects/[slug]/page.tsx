@@ -1,6 +1,6 @@
 import { Suspense } from "react";
-import { notFound, redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { notFound } from "next/navigation";
+import { requireAuth } from "@/lib/queries/get-auth-user";
 import { getProject } from "@/lib/queries/get-project";
 import { getProjectTrends } from "@/lib/queries/get-project-trends";
 import { getAssertionBreakdown } from "@/lib/queries/get-assertion-breakdown";
@@ -23,13 +23,9 @@ export default async function ProjectOverviewPage({
 }) {
   const { slug } = await params;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/sign-in");
+  const user = await requireAuth();
 
-  const project = await getProject(slug);
+  const project = await getProject(slug, user.id);
 
   if (!project) {
     notFound();

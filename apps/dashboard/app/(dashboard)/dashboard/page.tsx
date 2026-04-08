@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { requireAuth } from "@/lib/queries/get-auth-user";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { CreateProjectDialog } from "@/components/create-project-dialog";
 import { OnboardingChecklist } from "@/components/onboarding-checklist";
@@ -13,12 +13,8 @@ import { getOnboardingState } from "@/lib/queries/get-onboarding-state";
 type RunRow = LatestRunData & { project_id: string };
 
 export default async function ProjectsPage() {
+  const user = await requireAuth();
   const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/sign-in");
 
   const { data: projects, error: projectsError } = await supabase
     .from("projects")

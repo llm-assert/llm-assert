@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/queries/get-auth-user";
 import { getSubscription } from "@/lib/supabase/queries/subscription";
 import { getBillingAlertState } from "@/lib/billing/quota";
 import { PastDueBanner } from "./past-due-banner";
@@ -9,10 +9,7 @@ import {
 
 export async function BillingAlertBanner() {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getAuthUser();
 
     if (!user) return null;
 

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
+import { getAuthUser, requireAuth } from "@/lib/queries/get-auth-user";
 import { getProject } from "@/lib/queries/get-project";
 import {
   getProjectTrends,
@@ -18,7 +19,10 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const project = await getProject(slug);
+  const user = await getAuthUser();
+  if (!user) return { title: "Trends — LLMAssert" };
+
+  const project = await getProject(slug, user.id);
 
   return {
     title: project
@@ -37,10 +41,12 @@ export default async function TrendsPage({
   const { slug } = await params;
   const { range: rangeParam } = await searchParams;
 
+  const user = await requireAuth();
+
   const range = validateRange(rangeParam);
   const days = rangeToDays(range);
 
-  const project = await getProject(slug);
+  const project = await getProject(slug, user.id);
 
   if (!project) {
     notFound();

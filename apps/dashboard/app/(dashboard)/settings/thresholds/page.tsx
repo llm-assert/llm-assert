@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
+import { requireAuth } from "@/lib/queries/get-auth-user";
 import { ProjectSelector } from "@/components/project-selector";
 import { ThresholdsForm } from "@/components/thresholds-form";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -25,14 +25,8 @@ export default async function ThresholdsPage({
   const projectSlug =
     typeof params.project === "string" ? params.project : undefined;
 
+  const user = await requireAuth();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/sign-in");
-  }
 
   // Fetch projects and thresholds in parallel
   const [{ data: projects }, { data: thresholdRows }] = await Promise.all([

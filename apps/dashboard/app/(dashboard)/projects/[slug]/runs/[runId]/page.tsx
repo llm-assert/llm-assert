@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { notFound } from "next/navigation";
+import { getAuthUser, requireAuth } from "@/lib/queries/get-auth-user";
 import { getProject } from "@/lib/queries/get-project";
 import { getRun, getRunAvgScore } from "@/lib/queries/get-run";
 import { validateType, validateResult } from "@/lib/queries/get-evaluations";
@@ -20,8 +20,8 @@ type PageProps = {
   }>;
 };
 
-async function resolveRunContext(slug: string, runId: string) {
-  const project = await getProject(slug);
+async function resolveRunContext(slug: string, runId: string, userId: string) {
+  const project = await getProject(slug, userId);
   if (!project) return null;
 
   const run = await getRun(runId, project.id);
@@ -34,7 +34,10 @@ export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
   const { slug, runId } = await params;
-  const ctx = await resolveRunContext(slug, runId);
+  const user = await getAuthUser();
+  if (!user) return { title: "Run — LLMAssert" };
+
+  const ctx = await resolveRunContext(slug, runId, user.id);
 
   if (!ctx) {
     return { title: "Run — LLMAssert" };
@@ -56,13 +59,9 @@ export default async function RunDetailPage({
   const { slug, runId } = await params;
   const sp = await searchParams;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/sign-in");
+  const user = await requireAuth();
 
-  const ctx = await resolveRunContext(slug, runId);
+  const ctx = await resolveRunContext(slug, runId, user.id);
   if (!ctx) {
     notFound();
   }
