@@ -24,7 +24,7 @@ async function resolveRunContext(slug: string, runId: string, userId: string) {
   const project = await getProject(slug, userId);
   if (!project) return null;
 
-  const run = await getRun(runId, project.id);
+  const run = await getRun(runId, project.id, userId);
   if (!run) return null;
 
   return { project, run };
