@@ -40,20 +40,8 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  // Idempotency: insert event ID, skip if already processed
+  // Dedup is handled atomically inside the record_plan_transition RPC
   const db = supabaseAdmin();
-  const { error: dedupError } = await db
-    .from("stripe_webhook_events")
-    .insert({ event_id: event.id, event_type: event.type });
-
-  if (dedupError?.code === "23505") {
-    // Duplicate key — event already processed
-    return Response.json({ received: true });
-  }
-  if (dedupError) {
-    logWebhook("dedup_error", event.id, event.type, dedupError.message);
-    return Response.json({ error: "Internal server error" }, { status: 500 });
-  }
 
   // Dispatch by event type
   try {
@@ -136,10 +124,15 @@ async function callTransitionRPC(
   params: Record<string, unknown>,
   stripeEventId: string,
   eventType: string,
-): Promise<void> {
-  const { error } = await db.rpc("record_plan_transition", params);
+): Promise<"ok" | "duplicate"> {
+  const { data, error } = await db.rpc("record_plan_transition", params);
   if (error) throw error;
+  if (data === "duplicate") {
+    logWebhook("duplicate_skipped", stripeEventId, eventType);
+    return "duplicate";
+  }
   logWebhook("processed", stripeEventId, eventType, undefined, true);
+  return "ok";
 }
 
 // ---------------------------------------------------------------------------
@@ -191,7 +184,7 @@ async function handleCheckoutCompleted(
   const newPlan = plan?.name ?? "starter";
   const newStatus = "active";
 
-  await callTransitionRPC(
+  const result = await callTransitionRPC(
     db,
     {
       p_user_id: userId,
@@ -211,11 +204,13 @@ async function handleCheckoutCompleted(
       p_status: newStatus,
       p_evaluation_limit: plan?.evaluationLimit ?? 5_000,
       p_project_limit: plan?.projectsLimit ?? 1,
+      p_event_type: "checkout.session.completed",
     },
     stripeEventId,
     "checkout.session.completed",
   );
 
+  if (result === "duplicate") return;
   revalidateTag(`subscription-${userId}`, "max");
 }
 
@@ -257,7 +252,7 @@ async function handleSubscriptionUpdated(
     ? new Date(firstItem.current_period_end * 1000).toISOString()
     : null;
 
-  await callTransitionRPC(
+  const result = await callTransitionRPC(
     db,
     {
       p_user_id: current.user_id,
@@ -281,11 +276,13 @@ async function handleSubscriptionUpdated(
       p_evaluation_limit: plan?.evaluationLimit ?? 5_000,
       p_project_limit: plan?.projectsLimit ?? 1,
       p_cancel_at_period_end: subscription.cancel_at_period_end ?? false,
+      p_event_type: "customer.subscription.updated",
     },
     stripeEventId,
     "customer.subscription.updated",
   );
 
+  if (result === "duplicate") return;
   revalidateTag(`subscription-${current.user_id}`, "max");
 }
 
@@ -304,7 +301,7 @@ async function handleSubscriptionDeleted(
   const current = await getCurrentSubscription(db, { customerId });
   if (!current) return;
 
-  await callTransitionRPC(
+  const result = await callTransitionRPC(
     db,
     {
       p_user_id: current.user_id,
@@ -325,11 +322,13 @@ async function handleSubscriptionDeleted(
       p_evaluations_used: 0,
       p_last_evaluations_reset_at: new Date().toISOString(),
       p_current_period_end: null,
+      p_event_type: "customer.subscription.deleted",
     },
     stripeEventId,
     "customer.subscription.deleted",
   );
 
+  if (result === "duplicate") return;
   revalidateTag(`subscription-${current.user_id}`, "max");
 }
 
@@ -348,7 +347,7 @@ async function handleInvoicePaymentFailed(
   const current = await getCurrentSubscription(db, { customerId });
   if (!current) return;
 
-  await callTransitionRPC(
+  const result = await callTransitionRPC(
     db,
     {
       p_user_id: current.user_id,
@@ -360,11 +359,13 @@ async function handleInvoicePaymentFailed(
       p_stripe_event_id: stripeEventId,
       p_metadata: null,
       p_status: "past_due",
+      p_event_type: "invoice.payment_failed",
     },
     stripeEventId,
     "invoice.payment_failed",
   );
 
+  if (result === "duplicate") return;
   revalidateTag(`subscription-${current.user_id}`, "max");
 }
 
@@ -383,7 +384,7 @@ async function handleInvoicePaid(
   const current = await getCurrentSubscription(db, { customerId });
   if (!current) return;
 
-  await callTransitionRPC(
+  const result = await callTransitionRPC(
     db,
     {
       p_user_id: current.user_id,
@@ -397,11 +398,13 @@ async function handleInvoicePaid(
       p_status: "active",
       p_evaluations_used: 0,
       p_last_evaluations_reset_at: new Date().toISOString(),
+      p_event_type: "invoice.paid",
     },
     stripeEventId,
     "invoice.paid",
   );
 
+  if (result === "duplicate") return;
   revalidateTag(`subscription-${current.user_id}`, "max");
 }
 
