@@ -58,6 +58,28 @@ jobs:
           NEXT_PUBLIC_APP_URL: "http://localhost:3000"
         run: pnpm run build
 
+  pkg-exports:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build plugin package
+        run: pnpm --filter @llmassert/playwright build
+      - name: Validate types (attw)
+        run: pnpm --filter @llmassert/playwright exec attw --pack . --profile node16
+      - name: Validate exports map (publint)
+        run: pnpm --filter @llmassert/playwright exec publint --strict
+      - name: Validate runtime imports (ESM + CJS)
+        working-directory: packages/playwright
+        run: node scripts/check-exports.mjs
+      - name: Validate type declarations (tsc)
+        run: pnpm --filter @llmassert/playwright exec tsc -p scripts/tsconfig.check-exports.json
+
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
