@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { notFound, redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { notFound } from "next/navigation";
+import { getAuthUser, requireAuth } from "@/lib/queries/get-auth-user";
 import { getProject } from "@/lib/queries/get-project";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { RunsTable } from "@/components/runs-table";
@@ -13,7 +13,10 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const project = await getProject(slug);
+  const user = await getAuthUser();
+  if (!user) return { title: "Runs — LLMAssert" };
+
+  const project = await getProject(slug, user.id);
 
   return {
     title: project ? `Runs — ${project.name} — LLMAssert` : "Runs — LLMAssert",
@@ -30,15 +33,11 @@ export default async function TestRunsPage({
   const { slug } = await params;
   const { page: pageParam } = await searchParams;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/sign-in");
+  const user = await requireAuth();
 
   const page = Math.max(1, Math.floor(Number(pageParam) || 1));
 
-  const project = await getProject(slug);
+  const project = await getProject(slug, user.id);
 
   if (!project) {
     notFound();

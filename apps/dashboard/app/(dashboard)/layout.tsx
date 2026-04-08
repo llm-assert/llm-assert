@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { requireAuth } from "@/lib/queries/get-auth-user";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { BillingAlertBanner } from "@/components/billing/billing-alert-banner";
@@ -11,14 +10,7 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/sign-in");
-  }
+  const user = await requireAuth();
 
   const cookieStore = await cookies();
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";

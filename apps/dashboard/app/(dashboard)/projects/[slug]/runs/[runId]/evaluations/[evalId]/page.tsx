@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { getAuthUser, requireAuth } from "@/lib/queries/get-auth-user";
 import { getProject } from "@/lib/queries/get-project";
 import { getRun } from "@/lib/queries/get-run";
 import { getEvaluation } from "@/lib/queries/get-evaluation";
@@ -15,8 +16,9 @@ async function resolveEvaluationContext(
   slug: string,
   runId: string,
   evalId: string,
+  userId: string,
 ) {
-  const project = await getProject(slug);
+  const project = await getProject(slug, userId);
   if (!project) return null;
 
   const run = await getRun(runId, project.id);
@@ -32,7 +34,10 @@ export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
   const { slug, runId, evalId } = await params;
-  const ctx = await resolveEvaluationContext(slug, runId, evalId);
+  const user = await getAuthUser();
+  if (!user) return { title: "Evaluation — LLMAssert" };
+
+  const ctx = await resolveEvaluationContext(slug, runId, evalId, user.id);
 
   if (!ctx) {
     return { title: "Evaluation — LLMAssert" };
@@ -46,7 +51,9 @@ export async function generateMetadata({
 export default async function EvaluationDetailPage({ params }: PageProps) {
   const { slug, runId, evalId } = await params;
 
-  const ctx = await resolveEvaluationContext(slug, runId, evalId);
+  const user = await requireAuth();
+
+  const ctx = await resolveEvaluationContext(slug, runId, evalId, user.id);
   if (!ctx) {
     notFound();
   }

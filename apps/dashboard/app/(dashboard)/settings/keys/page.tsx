@@ -1,17 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
+import { requireAuth } from "@/lib/queries/get-auth-user";
 import { ApiKeysTable } from "@/components/api-keys-table";
 import { CreateKeyDialog } from "@/components/create-key-dialog";
 
 export default async function ApiKeysPage() {
+  const user = await requireAuth();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/sign-in");
-  }
 
   // Fetch all keys with project name/slug via PostgREST embedded join
   const { data: keys } = await supabase

@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { requireAuth } from "@/lib/queries/get-auth-user";
 import { getSubscription } from "@/lib/supabase/queries/subscription";
 import { PLANS } from "@/lib/plans";
 import type { PlanName } from "@/lib/plans.client";
@@ -7,7 +7,6 @@ import { SubscriptionStatus } from "@/components/billing/subscription-status";
 import { UsageMeter } from "@/components/billing/usage-meter";
 import { PlanCards } from "@/components/billing/plan-cards";
 import { CheckoutSuccessBanner } from "@/components/billing/checkout-success-banner";
-import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
@@ -19,14 +18,7 @@ export default async function BillingPage({
   const params = await searchParams;
   const showCheckoutSuccess = params.checkout === "success";
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/sign-in");
-  }
+  const user = await requireAuth();
 
   // Use shared cached helper — deduplicated with layout's BillingAlertBanner fetch
   const subscription = await getSubscription(user.id);
