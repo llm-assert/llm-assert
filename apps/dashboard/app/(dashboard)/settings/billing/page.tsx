@@ -1,11 +1,13 @@
 import { requireAuth } from "@/lib/queries/get-auth-user";
 import { getSubscription } from "@/lib/supabase/queries/subscription";
+import { getPlanTransitions } from "@/lib/supabase/queries/plan-transitions";
 import { PLANS } from "@/lib/plans";
 import type { PlanName } from "@/lib/plans.client";
 import { getPlanDisplay, PLAN_DISPLAY } from "@/lib/plans.client";
 import { SubscriptionStatus } from "@/components/billing/subscription-status";
 import { UsageMeter } from "@/components/billing/usage-meter";
 import { PlanCards } from "@/components/billing/plan-cards";
+import { PlanTransitionHistory } from "@/components/billing/plan-transition-history";
 import { CheckoutSuccessBanner } from "@/components/billing/checkout-success-banner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -21,7 +23,10 @@ export default async function BillingPage({
   const user = await requireAuth();
 
   // Use shared cached helper — deduplicated with layout's BillingAlertBanner fetch
-  const subscription = await getSubscription(user.id);
+  const [subscription, transitions] = await Promise.all([
+    getSubscription(user.id),
+    getPlanTransitions(user.id),
+  ]);
 
   const currentPlan = (subscription?.plan ?? "free") as PlanName;
   const planDisplay = getPlanDisplay(currentPlan);
@@ -100,6 +105,8 @@ export default async function BillingPage({
           subscriptionStatus={subscriptionStatus}
         />
       </div>
+
+      <PlanTransitionHistory transitions={transitions} />
     </div>
   );
 }

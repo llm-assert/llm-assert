@@ -6,21 +6,20 @@ import { POST } from "../route";
 // variables. All values must be inlined or use vi.hoisted().
 // ---------------------------------------------------------------------------
 
-const {
-  WEBHOOK_SECRET,
-  mockInsert,
-  mockUpsert,
-  mockUpdate,
-  mockEq,
-  mockSelect,
-} = vi.hoisted(() => ({
-  WEBHOOK_SECRET: "whsec_test_secret_for_unit_tests",
-  mockInsert: vi.fn(),
-  mockUpsert: vi.fn(),
-  mockUpdate: vi.fn(),
-  mockEq: vi.fn(),
-  mockSelect: vi.fn(),
-}));
+const { WEBHOOK_SECRET, mockInsert, mockRpc, mockSubscriptionSelect } =
+  vi.hoisted(() => ({
+    WEBHOOK_SECRET: "whsec_test_secret_for_unit_tests",
+    mockInsert: vi.fn(),
+    mockRpc: vi.fn(),
+    mockSubscriptionSelect: vi.fn(),
+  }));
+
+/** Default pre-read subscription state for tests */
+const DEFAULT_CURRENT_SUBSCRIPTION = {
+  user_id: "test-user-id",
+  plan: "starter",
+  status: "active",
+};
 
 vi.mock("@/lib/supabase/admin", () => ({
   supabaseAdmin: () => ({
@@ -28,12 +27,14 @@ vi.mock("@/lib/supabase/admin", () => ({
       if (table === "stripe_webhook_events") {
         return { insert: mockInsert };
       }
-      return {
-        upsert: mockUpsert,
-        update: mockUpdate,
-        select: mockSelect,
-      };
+      if (table === "subscriptions") {
+        return {
+          select: mockSubscriptionSelect,
+        };
+      }
+      return {};
     },
+    rpc: mockRpc,
   }),
 }));
 
@@ -69,43 +70,6 @@ vi.mock("@/lib/env.server", () => ({
     STRIPE_TEAM_PRICE_ID: "price_team_test",
   },
 }));
-
-// ---------------------------------------------------------------------------
-// Test signing helper
-// ---------------------------------------------------------------------------
-
-function signPayload(payload: string): string {
-  return Stripe.webhooks.generateTestHeaderString({
-    payload,
-    secret: WEBHOOK_SECRET,
-  });
-}
-
-function makeRequest(body: string, signature?: string): Request {
-  return new Request("http://localhost:3000/api/webhooks/stripe", {
-    method: "POST",
-    body,
-    headers: {
-      "stripe-signature": signature ?? signPayload(body),
-      "content-type": "application/json",
-    },
-  });
-}
-
-function resetDbMocks() {
-  mockInsert.mockReset().mockResolvedValue({ error: null });
-  mockUpsert.mockReset().mockResolvedValue({ error: null });
-  mockUpdate.mockReset().mockReturnValue({ eq: mockEq });
-  mockEq.mockReset().mockResolvedValue({ error: null });
-  // invalidateSubscriptionCache: .select("user_id").eq(...).maybeSingle()
-  mockSelect.mockReset().mockReturnValue({
-    eq: vi.fn().mockReturnValue({
-      maybeSingle: vi.fn().mockResolvedValue({
-        data: { user_id: "test-user-id" },
-      }),
-    }),
-  });
-}
 
 vi.mock("@/lib/plans", () => ({
   PLANS: {
@@ -143,6 +107,43 @@ vi.mock("@/lib/plans", () => ({
 }));
 
 // ---------------------------------------------------------------------------
+// Test signing helper
+// ---------------------------------------------------------------------------
+
+function signPayload(payload: string): string {
+  return Stripe.webhooks.generateTestHeaderString({
+    payload,
+    secret: WEBHOOK_SECRET,
+  });
+}
+
+function makeRequest(body: string, signature?: string): Request {
+  return new Request("http://localhost:3000/api/webhooks/stripe", {
+    method: "POST",
+    body,
+    headers: {
+      "stripe-signature": signature ?? signPayload(body),
+      "content-type": "application/json",
+    },
+  });
+}
+
+/** Set up the pre-read SELECT mock chain: .select().eq().maybeSingle() */
+function mockPreRead(data: Record<string, unknown> | null) {
+  mockSubscriptionSelect.mockReturnValue({
+    eq: vi.fn().mockReturnValue({
+      maybeSingle: vi.fn().mockResolvedValue({ data }),
+    }),
+  });
+}
+
+function resetDbMocks() {
+  mockInsert.mockReset().mockResolvedValue({ error: null });
+  mockRpc.mockReset().mockResolvedValue({ error: null });
+  mockPreRead(DEFAULT_CURRENT_SUBSCRIPTION);
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -170,7 +171,6 @@ beforeEach(() => {
 describe("POST /api/webhooks/stripe", () => {
   describe("guard checks", () => {
     it("returns 503 when Stripe client is undefined", async () => {
-      // Temporarily set stripe to undefined
       const mod = await import("@/lib/stripe");
       const descriptor = Object.getOwnPropertyDescriptor(mod, "stripe");
       Object.defineProperty(mod, "stripe", {
@@ -182,7 +182,6 @@ describe("POST /api/webhooks/stripe", () => {
       const res = await POST(makeRequest("{}"));
       expect(res.status).toBe(503);
 
-      // Restore
       Object.defineProperty(mod, "stripe", descriptor!);
     });
 
@@ -215,12 +214,9 @@ describe("POST /api/webhooks/stripe", () => {
     });
 
     it("passes raw body string to constructEvent, not re-serialized JSON", async () => {
-      // Body with specific whitespace that JSON.parse + JSON.stringify would change
       const rawBody = buildEvent("charge.succeeded", {});
       const req = makeRequest(rawBody);
       const res = await POST(req);
-      // If the handler re-serialized, the signature would fail (400).
-      // Getting 200 proves it used the raw string.
       expect(res.status).toBe(200);
     });
   });
@@ -239,13 +235,15 @@ describe("POST /api/webhooks/stripe", () => {
       const res = await POST(makeRequest(body));
 
       expect(res.status).toBe(200);
-      expect(mockUpsert).not.toHaveBeenCalled();
-      expect(mockUpdate).not.toHaveBeenCalled();
+      expect(mockRpc).not.toHaveBeenCalled();
     });
   });
 
-  describe("event handlers", () => {
-    it("upserts subscription on checkout.session.completed (keyed on user_id)", async () => {
+  describe("event handlers with audit trail", () => {
+    it("checkout.session.completed — calls RPC with correct old/new plan and reason", async () => {
+      // Pre-read returns free tier (user upgrading)
+      mockPreRead({ user_id: "user-uuid-123", plan: "free", status: "active" });
+
       const body = buildEvent("checkout.session.completed", {
         mode: "subscription",
         client_reference_id: "user-uuid-123",
@@ -255,57 +253,55 @@ describe("POST /api/webhooks/stripe", () => {
 
       const res = await POST(makeRequest(body));
       expect(res.status).toBe(200);
-      expect(mockUpsert).toHaveBeenCalledWith(
+      expect(mockRpc).toHaveBeenCalledWith(
+        "record_plan_transition",
         expect.objectContaining({
-          user_id: "user-uuid-123",
-          stripe_customer_id: "cus_123",
-          stripe_subscription_id: "sub_123",
-          status: "active",
-          project_limit: 3,
+          p_user_id: "user-uuid-123",
+          p_old_plan: "free",
+          p_new_plan: "starter",
+          p_old_status: "active",
+          p_new_status: "active",
+          p_reason: "checkout_completed",
+          p_stripe_event_id: expect.stringContaining("evt_test_"),
+          p_plan: "starter",
+          p_evaluation_limit: 5000,
+          p_project_limit: 3,
         }),
-        { onConflict: "user_id" },
       );
     });
 
-    it("upgrades existing free-tier row on checkout.session.completed", async () => {
-      // Free-tier row already exists for this user (created by trigger).
-      // The upsert on user_id should update it with paid plan data.
+    it("checkout.session.completed — null old_plan for new user (pre-read returns null)", async () => {
+      mockPreRead(null);
+
       const body = buildEvent("checkout.session.completed", {
         mode: "subscription",
-        client_reference_id: "user-free-tier",
-        customer: "cus_new_paid",
-        subscription: "sub_new_paid",
+        client_reference_id: "new-user-id",
+        customer: "cus_new",
+        subscription: "sub_new",
       });
 
       const res = await POST(makeRequest(body));
       expect(res.status).toBe(200);
-      expect(mockUpsert).toHaveBeenCalledWith(
+      expect(mockRpc).toHaveBeenCalledWith(
+        "record_plan_transition",
         expect.objectContaining({
-          user_id: "user-free-tier",
-          stripe_customer_id: "cus_new_paid",
-          stripe_subscription_id: "sub_new_paid",
-          plan: "starter",
-          status: "active",
-          evaluation_limit: 5000,
-          project_limit: 3,
+          p_user_id: "new-user-id",
+          p_old_plan: null,
+          p_new_plan: "starter",
+          p_old_status: null,
+          p_new_status: "active",
+          p_reason: "checkout_completed",
         }),
-        { onConflict: "user_id" },
       );
     });
 
-    it("skips checkout.session.completed without client_reference_id", async () => {
-      const body = buildEvent("checkout.session.completed", {
-        mode: "subscription",
-        customer: "cus_123",
-        subscription: "sub_123",
+    it("customer.subscription.updated with plan change — RPC called with old != new plan", async () => {
+      mockPreRead({
+        user_id: "test-user-id",
+        plan: "starter",
+        status: "active",
       });
 
-      const res = await POST(makeRequest(body));
-      expect(res.status).toBe(200);
-      expect(mockUpsert).not.toHaveBeenCalled();
-    });
-
-    it("syncs plan, status, period dates, and evaluation limit on subscription.updated", async () => {
       const periodStart = Math.floor(Date.now() / 1000);
       const periodEnd = periodStart + 30 * 24 * 60 * 60;
       const body = buildEvent("customer.subscription.updated", {
@@ -324,100 +320,155 @@ describe("POST /api/webhooks/stripe", () => {
 
       const res = await POST(makeRequest(body));
       expect(res.status).toBe(200);
-      expect(mockUpdate).toHaveBeenCalledWith({
-        plan: "pro",
-        status: "active",
-        current_period_start: new Date(periodStart * 1000).toISOString(),
-        current_period_end: new Date(periodEnd * 1000).toISOString(),
-        evaluation_limit: 25000,
-        project_limit: 10,
-      });
-      expect(mockEq).toHaveBeenCalledWith("stripe_customer_id", "cus_updated");
+      expect(mockRpc).toHaveBeenCalledWith(
+        "record_plan_transition",
+        expect.objectContaining({
+          p_old_plan: "starter",
+          p_new_plan: "pro",
+          p_old_status: "active",
+          p_new_status: "active",
+          p_reason: "subscription_updated",
+          p_evaluation_limit: 25000,
+          p_project_limit: 10,
+        }),
+      );
     });
 
-    it("resets to free tier on subscription.deleted", async () => {
+    it("customer.subscription.updated without plan change — RPC called but no audit row (handled by DB)", async () => {
+      // Pre-read returns same plan as update
+      mockPreRead({ user_id: "test-user-id", plan: "pro", status: "active" });
+
+      const body = buildEvent("customer.subscription.updated", {
+        customer: "cus_same_plan",
+        status: "active",
+        items: {
+          data: [{ price: { id: "price_pro_test" } }],
+        },
+      });
+
+      const res = await POST(makeRequest(body));
+      expect(res.status).toBe(200);
+      // RPC is still called — the IS DISTINCT FROM check in the DB handles the no-op
+      expect(mockRpc).toHaveBeenCalledWith(
+        "record_plan_transition",
+        expect.objectContaining({
+          p_old_plan: "pro",
+          p_new_plan: "pro",
+          p_old_status: "active",
+          p_new_status: "active",
+        }),
+      );
+    });
+
+    it("customer.subscription.deleted — RPC called with new_plan = free", async () => {
+      mockPreRead({ user_id: "test-user-id", plan: "pro", status: "active" });
+
       const body = buildEvent("customer.subscription.deleted", {
         customer: "cus_123",
       });
 
       const res = await POST(makeRequest(body));
       expect(res.status).toBe(200);
-      expect(mockUpdate).toHaveBeenCalledWith({
-        plan: "free",
-        status: "active",
-        evaluation_limit: 100,
-        project_limit: 1,
-        evaluations_used: 0,
-        last_evaluations_reset_at: expect.any(String),
-        current_period_end: null,
-      });
-      // Verify the timestamp is a valid ISO string
-      const updateArg = mockUpdate.mock.calls[0][0];
-      expect(new Date(updateArg.last_evaluations_reset_at).toISOString()).toBe(
-        updateArg.last_evaluations_reset_at,
+      expect(mockRpc).toHaveBeenCalledWith(
+        "record_plan_transition",
+        expect.objectContaining({
+          p_old_plan: "pro",
+          p_new_plan: "free",
+          p_old_status: "active",
+          p_new_status: "active",
+          p_reason: "subscription_deleted",
+          p_evaluation_limit: 100,
+          p_project_limit: 1,
+          p_evaluations_used: 0,
+        }),
       );
-      expect(mockEq).toHaveBeenCalledWith("stripe_customer_id", "cus_123");
     });
 
-    it("preserves stripe_customer_id on subscription.deleted", async () => {
-      const body = buildEvent("customer.subscription.deleted", {
-        customer: "cus_preserve_test",
-      });
+    it("invoice.payment_failed — RPC called with new_status = past_due", async () => {
+      mockPreRead({ user_id: "test-user-id", plan: "pro", status: "active" });
 
-      const res = await POST(makeRequest(body));
-      expect(res.status).toBe(200);
-      const updateArg = mockUpdate.mock.calls[0][0];
-      expect(updateArg).not.toHaveProperty("stripe_customer_id");
-      expect(updateArg).not.toHaveProperty("stripe_subscription_id");
-    });
-
-    it("subscription.deleted for unknown customer is a no-op", async () => {
-      mockEq.mockResolvedValue({ error: null, count: 0 });
-
-      const body = buildEvent("customer.subscription.deleted", {
-        customer: "cus_nonexistent",
-      });
-
-      const res = await POST(makeRequest(body));
-      expect(res.status).toBe(200);
-    });
-
-    it("updates status to past_due on invoice.payment_failed", async () => {
       const body = buildEvent("invoice.payment_failed", {
         customer: "cus_456",
       });
 
       const res = await POST(makeRequest(body));
       expect(res.status).toBe(200);
-      expect(mockUpdate).toHaveBeenCalledWith({ status: "past_due" });
-      expect(mockEq).toHaveBeenCalledWith("stripe_customer_id", "cus_456");
+      expect(mockRpc).toHaveBeenCalledWith(
+        "record_plan_transition",
+        expect.objectContaining({
+          p_old_plan: "pro",
+          p_new_plan: "pro",
+          p_old_status: "active",
+          p_new_status: "past_due",
+          p_reason: "payment_failed",
+          p_status: "past_due",
+        }),
+      );
     });
 
-    it("updates status to active, resets evaluations_used, and stamps last_evaluations_reset_at on invoice.paid", async () => {
+    it("invoice.paid — RPC called with new_status = active and evaluations reset", async () => {
+      mockPreRead({ user_id: "test-user-id", plan: "pro", status: "past_due" });
+
       const body = buildEvent("invoice.paid", { customer: "cus_789" });
 
       const res = await POST(makeRequest(body));
       expect(res.status).toBe(200);
-      expect(mockUpdate).toHaveBeenCalledWith({
-        status: "active",
-        evaluations_used: 0,
-        last_evaluations_reset_at: expect.any(String),
-      });
-      // Verify the timestamp is a valid ISO string
-      const updateArg = mockUpdate.mock.calls[0][0];
-      expect(new Date(updateArg.last_evaluations_reset_at).toISOString()).toBe(
-        updateArg.last_evaluations_reset_at,
+      expect(mockRpc).toHaveBeenCalledWith(
+        "record_plan_transition",
+        expect.objectContaining({
+          p_old_plan: "pro",
+          p_new_plan: "pro",
+          p_old_status: "past_due",
+          p_new_status: "active",
+          p_reason: "payment_recovered",
+          p_evaluations_used: 0,
+          p_last_evaluations_reset_at: expect.any(String),
+        }),
       );
-      expect(mockEq).toHaveBeenCalledWith("stripe_customer_id", "cus_789");
     });
 
-    it("returns 200 with no DB writes for unrecognized event type", async () => {
+    it("skips checkout.session.completed without client_reference_id", async () => {
+      const body = buildEvent("checkout.session.completed", {
+        mode: "subscription",
+        customer: "cus_123",
+        subscription: "sub_123",
+      });
+
+      const res = await POST(makeRequest(body));
+      expect(res.status).toBe(200);
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
+
+    it("returns 200 with no RPC calls for unrecognized event type", async () => {
       const body = buildEvent("charge.succeeded", { id: "ch_123" });
 
       const res = await POST(makeRequest(body));
       expect(res.status).toBe(200);
-      expect(mockUpsert).not.toHaveBeenCalled();
-      expect(mockUpdate).not.toHaveBeenCalled();
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("RPC failure triggers Stripe retry", () => {
+    it("returns 500 when RPC fails so Stripe retries the event", async () => {
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      mockRpc.mockResolvedValue({
+        error: { code: "42501", message: "permission denied" },
+      });
+
+      const body = buildEvent("customer.subscription.deleted", {
+        customer: "cus_rpc_fail",
+      });
+
+      const res = await POST(makeRequest(body));
+      expect(res.status).toBe(500);
+
+      const logged = errorSpy.mock.calls.find(
+        (call) =>
+          typeof call[0] === "string" && call[0].includes("processing_error"),
+      );
+      expect(logged).toBeDefined();
+
+      errorSpy.mockRestore();
     });
   });
 
@@ -441,9 +492,8 @@ describe("POST /api/webhooks/stripe", () => {
 
       const res = await POST(makeRequest(body));
       expect(res.status).toBe(500);
-      expect(mockUpsert).not.toHaveBeenCalled();
+      expect(mockRpc).not.toHaveBeenCalled();
 
-      // Verify the error was logged with structured context
       const logged = errorSpy.mock.calls.find(
         (call) =>
           typeof call[0] === "string" && call[0].includes("resolve_plan_error"),
@@ -471,22 +521,6 @@ describe("POST /api/webhooks/stripe", () => {
       expect(logged![0]).toContain(WEBHOOK_SECRET.slice(-8));
 
       errorSpy.mockRestore();
-    });
-
-    it("returns 500 when Supabase write fails", async () => {
-      mockUpsert.mockResolvedValue({
-        error: { code: "42501", message: "permission denied" },
-      });
-
-      const body = buildEvent("checkout.session.completed", {
-        mode: "subscription",
-        client_reference_id: "user-uuid-123",
-        customer: "cus_123",
-        subscription: "sub_123",
-      });
-
-      const res = await POST(makeRequest(body));
-      expect(res.status).toBe(500);
     });
   });
 });

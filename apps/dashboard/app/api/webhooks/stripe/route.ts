@@ -1,4 +1,5 @@
 import type Stripe from "stripe";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { revalidateTag } from "next/cache";
 import { stripe } from "@/lib/stripe";
 import { serverEnv } from "@/lib/env.server";
@@ -58,19 +59,19 @@ export async function POST(request: Request): Promise<Response> {
   try {
     switch (event.type) {
       case "checkout.session.completed":
-        await handleCheckoutCompleted(event.data.object, db);
+        await handleCheckoutCompleted(event.data.object, event.id, db);
         break;
       case "customer.subscription.updated":
-        await handleSubscriptionUpdated(event.data.object, db);
+        await handleSubscriptionUpdated(event.data.object, event.id, db);
         break;
       case "customer.subscription.deleted":
-        await handleSubscriptionDeleted(event.data.object, db);
+        await handleSubscriptionDeleted(event.data.object, event.id, db);
         break;
       case "invoice.payment_failed":
-        await handleInvoicePaymentFailed(event.data.object, db);
+        await handleInvoicePaymentFailed(event.data.object, event.id, db);
         break;
       case "invoice.paid":
-        await handleInvoicePaid(event.data.object, db);
+        await handleInvoicePaid(event.data.object, event.id, db);
         break;
       default:
         // Acknowledge unrecognized events without processing
@@ -93,12 +94,62 @@ export async function POST(request: Request): Promise<Response> {
 }
 
 // ---------------------------------------------------------------------------
+// Pre-read helper: fetch current subscription state before RPC
+// ---------------------------------------------------------------------------
+
+type CurrentSubscription = {
+  user_id: string;
+  plan: string;
+  status: string;
+};
+
+/** Read current subscription row by user_id or stripe_customer_id. Returns null for new users. */
+async function getCurrentSubscription(
+  db: SupabaseClient,
+  options: { userId?: string; customerId?: string },
+): Promise<CurrentSubscription | null> {
+  if (options.userId) {
+    const { data } = await db
+      .from("subscriptions")
+      .select("user_id, plan, status")
+      .eq("user_id", options.userId)
+      .maybeSingle();
+    return data;
+  }
+  if (options.customerId) {
+    const { data } = await db
+      .from("subscriptions")
+      .select("user_id, plan, status")
+      .eq("stripe_customer_id", options.customerId)
+      .maybeSingle();
+    return data;
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// RPC call helper with audit logging
+// ---------------------------------------------------------------------------
+
+async function callTransitionRPC(
+  db: SupabaseClient,
+  params: Record<string, unknown>,
+  stripeEventId: string,
+  eventType: string,
+): Promise<void> {
+  const { error } = await db.rpc("record_plan_transition", params);
+  if (error) throw error;
+  logWebhook("processed", stripeEventId, eventType, undefined, true);
+}
+
+// ---------------------------------------------------------------------------
 // Event handlers
 // ---------------------------------------------------------------------------
 
 async function handleCheckoutCompleted(
   session: Stripe.Checkout.Session,
-  db: ReturnType<typeof supabaseAdmin>,
+  stripeEventId: string,
+  db: SupabaseClient,
 ): Promise<void> {
   if (session.mode !== "subscription") return;
 
@@ -135,26 +186,43 @@ async function handleCheckoutCompleted(
     );
   }
 
-  const { error } = await db.from("subscriptions").upsert(
+  // Pre-read current subscription for audit trail
+  const current = await getCurrentSubscription(db, { userId });
+  const newPlan = plan?.name ?? "starter";
+  const newStatus = "active";
+
+  await callTransitionRPC(
+    db,
     {
-      user_id: userId,
-      stripe_customer_id: customerId,
-      stripe_subscription_id: subscriptionId ?? null,
-      plan: plan?.name ?? "starter",
-      status: "active",
-      evaluation_limit: plan?.evaluationLimit ?? 5_000,
-      project_limit: plan?.projectsLimit ?? 1,
+      p_user_id: userId,
+      p_old_plan: current?.plan ?? null,
+      p_new_plan: newPlan,
+      p_old_status: current?.status ?? null,
+      p_new_status: newStatus,
+      p_reason: "checkout_completed",
+      p_stripe_event_id: stripeEventId,
+      p_metadata: {
+        evaluation_limit: plan?.evaluationLimit ?? 5_000,
+        project_limit: plan?.projectsLimit ?? 1,
+      },
+      p_stripe_customer_id: customerId,
+      p_stripe_subscription_id: subscriptionId ?? null,
+      p_plan: newPlan,
+      p_status: newStatus,
+      p_evaluation_limit: plan?.evaluationLimit ?? 5_000,
+      p_project_limit: plan?.projectsLimit ?? 1,
     },
-    { onConflict: "user_id" },
+    stripeEventId,
+    "checkout.session.completed",
   );
 
-  if (error) throw error;
   revalidateTag(`subscription-${userId}`, "max");
 }
 
 async function handleSubscriptionUpdated(
   subscription: Stripe.Subscription,
-  db: ReturnType<typeof supabaseAdmin>,
+  stripeEventId: string,
+  db: SupabaseClient,
 ): Promise<void> {
   const customerId =
     typeof subscription.customer === "string"
@@ -176,29 +244,53 @@ async function handleSubscriptionUpdated(
     );
   }
 
-  const { error } = await db
-    .from("subscriptions")
-    .update({
-      plan: plan?.name ?? "starter",
-      status: subscription.status,
-      current_period_start: firstItem?.current_period_start
-        ? new Date(firstItem.current_period_start * 1000).toISOString()
-        : null,
-      current_period_end: firstItem?.current_period_end
-        ? new Date(firstItem.current_period_end * 1000).toISOString()
-        : null,
-      evaluation_limit: plan?.evaluationLimit ?? 5_000,
-      project_limit: plan?.projectsLimit ?? 1,
-    })
-    .eq("stripe_customer_id", customerId);
+  // Pre-read current subscription for audit trail
+  const current = await getCurrentSubscription(db, { customerId });
+  if (!current) return;
 
-  if (error) throw error;
-  await invalidateSubscriptionCache(customerId, db);
+  const newPlan = plan?.name ?? "starter";
+  const newStatus = subscription.status;
+  const periodStart = firstItem?.current_period_start
+    ? new Date(firstItem.current_period_start * 1000).toISOString()
+    : null;
+  const periodEnd = firstItem?.current_period_end
+    ? new Date(firstItem.current_period_end * 1000).toISOString()
+    : null;
+
+  await callTransitionRPC(
+    db,
+    {
+      p_user_id: current.user_id,
+      p_old_plan: current.plan,
+      p_new_plan: newPlan,
+      p_old_status: current.status,
+      p_new_status: newStatus,
+      p_reason: "subscription_updated",
+      p_stripe_event_id: stripeEventId,
+      p_metadata: {
+        evaluation_limit: plan?.evaluationLimit ?? 5_000,
+        project_limit: plan?.projectsLimit ?? 1,
+        current_period_start: periodStart,
+        current_period_end: periodEnd,
+      },
+      p_plan: newPlan,
+      p_status: newStatus,
+      p_current_period_start: periodStart,
+      p_current_period_end: periodEnd,
+      p_evaluation_limit: plan?.evaluationLimit ?? 5_000,
+      p_project_limit: plan?.projectsLimit ?? 1,
+    },
+    stripeEventId,
+    "customer.subscription.updated",
+  );
+
+  revalidateTag(`subscription-${current.user_id}`, "max");
 }
 
 async function handleSubscriptionDeleted(
   subscription: Stripe.Subscription,
-  db: ReturnType<typeof supabaseAdmin>,
+  stripeEventId: string,
+  db: SupabaseClient,
 ): Promise<void> {
   const customerId =
     typeof subscription.customer === "string"
@@ -206,26 +298,43 @@ async function handleSubscriptionDeleted(
       : subscription.customer?.id;
   if (!customerId) return;
 
-  const { error } = await db
-    .from("subscriptions")
-    .update({
-      plan: "free",
-      status: "active",
-      evaluation_limit: PLANS.free.evaluationLimit,
-      project_limit: PLANS.free.projectsLimit,
-      evaluations_used: 0,
-      last_evaluations_reset_at: new Date().toISOString(),
-      current_period_end: null,
-    })
-    .eq("stripe_customer_id", customerId);
+  // Pre-read current subscription for audit trail
+  const current = await getCurrentSubscription(db, { customerId });
+  if (!current) return;
 
-  if (error) throw error;
-  await invalidateSubscriptionCache(customerId, db);
+  await callTransitionRPC(
+    db,
+    {
+      p_user_id: current.user_id,
+      p_old_plan: current.plan,
+      p_new_plan: "free",
+      p_old_status: current.status,
+      p_new_status: "active",
+      p_reason: "subscription_deleted",
+      p_stripe_event_id: stripeEventId,
+      p_metadata: {
+        evaluation_limit: PLANS.free.evaluationLimit,
+        project_limit: PLANS.free.projectsLimit,
+      },
+      p_plan: "free",
+      p_status: "active",
+      p_evaluation_limit: PLANS.free.evaluationLimit,
+      p_project_limit: PLANS.free.projectsLimit,
+      p_evaluations_used: 0,
+      p_last_evaluations_reset_at: new Date().toISOString(),
+      p_current_period_end: null,
+    },
+    stripeEventId,
+    "customer.subscription.deleted",
+  );
+
+  revalidateTag(`subscription-${current.user_id}`, "max");
 }
 
 async function handleInvoicePaymentFailed(
   invoice: Stripe.Invoice,
-  db: ReturnType<typeof supabaseAdmin>,
+  stripeEventId: string,
+  db: SupabaseClient,
 ): Promise<void> {
   const customerId =
     typeof invoice.customer === "string"
@@ -233,18 +342,34 @@ async function handleInvoicePaymentFailed(
       : invoice.customer?.id;
   if (!customerId) return;
 
-  const { error } = await db
-    .from("subscriptions")
-    .update({ status: "past_due" })
-    .eq("stripe_customer_id", customerId);
+  // Pre-read current subscription for audit trail
+  const current = await getCurrentSubscription(db, { customerId });
+  if (!current) return;
 
-  if (error) throw error;
-  await invalidateSubscriptionCache(customerId, db);
+  await callTransitionRPC(
+    db,
+    {
+      p_user_id: current.user_id,
+      p_old_plan: current.plan,
+      p_new_plan: current.plan,
+      p_old_status: current.status,
+      p_new_status: "past_due",
+      p_reason: "payment_failed",
+      p_stripe_event_id: stripeEventId,
+      p_metadata: null,
+      p_status: "past_due",
+    },
+    stripeEventId,
+    "invoice.payment_failed",
+  );
+
+  revalidateTag(`subscription-${current.user_id}`, "max");
 }
 
 async function handleInvoicePaid(
   invoice: Stripe.Invoice,
-  db: ReturnType<typeof supabaseAdmin>,
+  stripeEventId: string,
+  db: SupabaseClient,
 ): Promise<void> {
   const customerId =
     typeof invoice.customer === "string"
@@ -252,17 +377,30 @@ async function handleInvoicePaid(
       : invoice.customer?.id;
   if (!customerId) return;
 
-  const { error } = await db
-    .from("subscriptions")
-    .update({
-      status: "active",
-      evaluations_used: 0,
-      last_evaluations_reset_at: new Date().toISOString(),
-    })
-    .eq("stripe_customer_id", customerId);
+  // Pre-read current subscription for audit trail
+  const current = await getCurrentSubscription(db, { customerId });
+  if (!current) return;
 
-  if (error) throw error;
-  await invalidateSubscriptionCache(customerId, db);
+  await callTransitionRPC(
+    db,
+    {
+      p_user_id: current.user_id,
+      p_old_plan: current.plan,
+      p_new_plan: current.plan,
+      p_old_status: current.status,
+      p_new_status: "active",
+      p_reason: "payment_recovered",
+      p_stripe_event_id: stripeEventId,
+      p_metadata: null,
+      p_status: "active",
+      p_evaluations_used: 0,
+      p_last_evaluations_reset_at: new Date().toISOString(),
+    },
+    stripeEventId,
+    "invoice.paid",
+  );
+
+  revalidateTag(`subscription-${current.user_id}`, "max");
 }
 
 // ---------------------------------------------------------------------------
@@ -277,6 +415,7 @@ function logWebhook(
   stripeId: string,
   type: string,
   error?: string,
+  auditWritten?: boolean,
 ): void {
   const entry = {
     source: "stripe-webhook",
@@ -284,26 +423,12 @@ function logWebhook(
     stripeId,
     type,
     ...(error && { error }),
+    ...(auditWritten !== undefined && { auditWritten }),
   };
   if (error) {
     console.error(JSON.stringify(entry));
   } else {
     console.log(JSON.stringify(entry));
-  }
-}
-
-/** Look up user_id by stripe_customer_id and invalidate their subscription cache. */
-async function invalidateSubscriptionCache(
-  customerId: string,
-  db: ReturnType<typeof supabaseAdmin>,
-): Promise<void> {
-  const { data } = await db
-    .from("subscriptions")
-    .select("user_id")
-    .eq("stripe_customer_id", customerId)
-    .maybeSingle();
-  if (data?.user_id) {
-    revalidateTag(`subscription-${data.user_id}`, "max");
   }
 }
 
