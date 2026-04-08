@@ -108,6 +108,15 @@ function resetDbMocks() {
 }
 
 vi.mock("@/lib/plans", () => ({
+  PLANS: {
+    free: {
+      name: "free",
+      label: "Free",
+      evaluationLimit: 100,
+      projectsLimit: 1,
+      priceId: null,
+    },
+  },
   planFromPriceId: (priceId: string) => {
     const plans: Record<string, { name: string; evaluationLimit: number }> = {
       price_starter_test: { name: "starter", evaluationLimit: 5000 },
@@ -308,7 +317,7 @@ describe("POST /api/webhooks/stripe", () => {
       expect(mockEq).toHaveBeenCalledWith("stripe_customer_id", "cus_updated");
     });
 
-    it("updates status to canceled and clears period end on subscription.deleted", async () => {
+    it("resets to free tier on subscription.deleted", async () => {
       const body = buildEvent("customer.subscription.deleted", {
         customer: "cus_123",
       });
@@ -316,10 +325,42 @@ describe("POST /api/webhooks/stripe", () => {
       const res = await POST(makeRequest(body));
       expect(res.status).toBe(200);
       expect(mockUpdate).toHaveBeenCalledWith({
-        status: "canceled",
+        plan: "free",
+        status: "active",
+        evaluation_limit: 100,
+        evaluations_used: 0,
+        last_evaluations_reset_at: expect.any(String),
         current_period_end: null,
       });
+      // Verify the timestamp is a valid ISO string
+      const updateArg = mockUpdate.mock.calls[0][0];
+      expect(new Date(updateArg.last_evaluations_reset_at).toISOString()).toBe(
+        updateArg.last_evaluations_reset_at,
+      );
       expect(mockEq).toHaveBeenCalledWith("stripe_customer_id", "cus_123");
+    });
+
+    it("preserves stripe_customer_id on subscription.deleted", async () => {
+      const body = buildEvent("customer.subscription.deleted", {
+        customer: "cus_preserve_test",
+      });
+
+      const res = await POST(makeRequest(body));
+      expect(res.status).toBe(200);
+      const updateArg = mockUpdate.mock.calls[0][0];
+      expect(updateArg).not.toHaveProperty("stripe_customer_id");
+      expect(updateArg).not.toHaveProperty("stripe_subscription_id");
+    });
+
+    it("subscription.deleted for unknown customer is a no-op", async () => {
+      mockEq.mockResolvedValue({ error: null, count: 0 });
+
+      const body = buildEvent("customer.subscription.deleted", {
+        customer: "cus_nonexistent",
+      });
+
+      const res = await POST(makeRequest(body));
+      expect(res.status).toBe(200);
     });
 
     it("updates status to past_due on invoice.payment_failed", async () => {
