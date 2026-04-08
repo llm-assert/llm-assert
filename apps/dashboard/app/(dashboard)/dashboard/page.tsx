@@ -16,16 +16,28 @@ export default async function ProjectsPage() {
   const user = await requireAuth();
   const supabase = await createClient();
 
-  const { data: projects, error: projectsError } = await supabase
-    .from("projects")
-    .select("id, name, slug, description")
-    // RLS perf hint — not a security boundary (see CLAUDE.md)
-    .eq("user_id", user.id)
-    .order("updated_at", { ascending: false });
+  const [{ data: projects, error: projectsError }, { data: subscription }] =
+    await Promise.all([
+      supabase
+        .from("projects")
+        .select("id, name, slug, description")
+        // RLS perf hint — not a security boundary (see CLAUDE.md)
+        .eq("user_id", user.id)
+        .order("updated_at", { ascending: false }),
+      supabase
+        .from("subscriptions")
+        .select("project_limit")
+        .eq("user_id", user.id)
+        .maybeSingle(),
+    ]);
 
   if (projectsError) {
     throw new Error(`Failed to load projects: ${projectsError.message}`);
   }
+
+  const projectLimit = subscription?.project_limit ?? 1;
+  const projectCount = (projects ?? []).length;
+  const atProjectQuota = projectLimit >= 0 && projectCount >= projectLimit;
 
   const projectIds = (projects ?? []).map((p) => p.id);
 
@@ -95,7 +107,17 @@ export default async function ProjectsPage() {
         )}
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-semibold">Projects</h1>
-          <CreateProjectDialog />
+          <div className="flex items-center gap-3">
+            <span
+              className="text-sm text-muted-foreground"
+              data-testid="project-quota-usage"
+            >
+              {projectCount} of{" "}
+              {projectLimit < 0 ? "Unlimited" : projectLimit}{" "}
+              {projectLimit === 1 ? "project" : "projects"} used
+            </span>
+            <CreateProjectDialog atProjectQuota={atProjectQuota} />
+          </div>
         </div>
         <ul className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {(projects ?? []).map((project: ProjectData) => (
