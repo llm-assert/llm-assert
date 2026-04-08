@@ -6,13 +6,11 @@ import { POST } from "../route";
 // variables. All values must be inlined or use vi.hoisted().
 // ---------------------------------------------------------------------------
 
-const { WEBHOOK_SECRET, mockInsert, mockRpc, mockSubscriptionSelect } =
-  vi.hoisted(() => ({
-    WEBHOOK_SECRET: "whsec_test_secret_for_unit_tests",
-    mockInsert: vi.fn(),
-    mockRpc: vi.fn(),
-    mockSubscriptionSelect: vi.fn(),
-  }));
+const { WEBHOOK_SECRET, mockRpc, mockSubscriptionSelect } = vi.hoisted(() => ({
+  WEBHOOK_SECRET: "whsec_test_secret_for_unit_tests",
+  mockRpc: vi.fn(),
+  mockSubscriptionSelect: vi.fn(),
+}));
 
 /** Default pre-read subscription state for tests */
 const DEFAULT_CURRENT_SUBSCRIPTION = {
@@ -24,9 +22,6 @@ const DEFAULT_CURRENT_SUBSCRIPTION = {
 vi.mock("@/lib/supabase/admin", () => ({
   supabaseAdmin: () => ({
     from: (table: string) => {
-      if (table === "stripe_webhook_events") {
-        return { insert: mockInsert };
-      }
       if (table === "subscriptions") {
         return {
           select: mockSubscriptionSelect,
@@ -138,8 +133,7 @@ function mockPreRead(data: Record<string, unknown> | null) {
 }
 
 function resetDbMocks() {
-  mockInsert.mockReset().mockResolvedValue({ error: null });
-  mockRpc.mockReset().mockResolvedValue({ error: null });
+  mockRpc.mockReset().mockResolvedValue({ data: "ok", error: null });
   mockPreRead(DEFAULT_CURRENT_SUBSCRIPTION);
 }
 
@@ -165,6 +159,7 @@ function buildEvent(
 // ---------------------------------------------------------------------------
 
 beforeEach(() => {
+  vi.clearAllMocks();
   resetDbMocks();
 });
 
@@ -221,11 +216,10 @@ describe("POST /api/webhooks/stripe", () => {
     });
   });
 
-  describe("idempotency", () => {
-    it("returns 200 without re-processing on duplicate event", async () => {
-      mockInsert.mockResolvedValue({
-        error: { code: "23505", message: "duplicate key" },
-      });
+  describe("idempotency (atomic dedup via RPC)", () => {
+    it("returns 200 and skips revalidateTag when RPC returns duplicate", async () => {
+      const { revalidateTag } = await import("next/cache");
+      mockRpc.mockResolvedValue({ data: "duplicate", error: null });
 
       const body = buildEvent("customer.subscription.updated", {
         customer: "cus_123",
@@ -235,13 +229,13 @@ describe("POST /api/webhooks/stripe", () => {
       const res = await POST(makeRequest(body));
 
       expect(res.status).toBe(200);
-      expect(mockRpc).not.toHaveBeenCalled();
+      expect(mockRpc).toHaveBeenCalledTimes(1);
+      expect(revalidateTag).not.toHaveBeenCalled();
     });
 
-    it("returns 200 without re-processing on duplicate cancellation event", async () => {
-      mockInsert.mockResolvedValue({
-        error: { code: "23505", message: "duplicate key" },
-      });
+    it("returns 200 and skips revalidateTag on duplicate cancellation event", async () => {
+      const { revalidateTag } = await import("next/cache");
+      mockRpc.mockResolvedValue({ data: "duplicate", error: null });
 
       const body = buildEvent("customer.subscription.updated", {
         customer: "cus_cancel_dup",
@@ -252,7 +246,26 @@ describe("POST /api/webhooks/stripe", () => {
       const res = await POST(makeRequest(body));
 
       expect(res.status).toBe(200);
-      expect(mockRpc).not.toHaveBeenCalled();
+      expect(mockRpc).toHaveBeenCalledTimes(1);
+      expect(revalidateTag).not.toHaveBeenCalled();
+    });
+
+    it("logs duplicate_skipped when RPC returns duplicate", async () => {
+      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      mockRpc.mockResolvedValue({ data: "duplicate", error: null });
+
+      const body = buildEvent("customer.subscription.deleted", {
+        customer: "cus_dup_log",
+      });
+      await POST(makeRequest(body));
+
+      const logged = logSpy.mock.calls.find(
+        (call) =>
+          typeof call[0] === "string" && call[0].includes("duplicate_skipped"),
+      );
+      expect(logged).toBeDefined();
+
+      logSpy.mockRestore();
     });
   });
 
@@ -283,6 +296,7 @@ describe("POST /api/webhooks/stripe", () => {
           p_plan: "starter",
           p_evaluation_limit: 5000,
           p_project_limit: 3,
+          p_event_type: "checkout.session.completed",
         }),
       );
     });
@@ -347,6 +361,7 @@ describe("POST /api/webhooks/stripe", () => {
           p_reason: "subscription_updated",
           p_evaluation_limit: 25000,
           p_project_limit: 10,
+          p_event_type: "customer.subscription.updated",
         }),
       );
     });
@@ -460,6 +475,7 @@ describe("POST /api/webhooks/stripe", () => {
           p_evaluation_limit: 100,
           p_project_limit: 1,
           p_evaluations_used: 0,
+          p_event_type: "customer.subscription.deleted",
         }),
       );
     });
@@ -482,6 +498,7 @@ describe("POST /api/webhooks/stripe", () => {
           p_new_status: "past_due",
           p_reason: "payment_failed",
           p_status: "past_due",
+          p_event_type: "invoice.payment_failed",
         }),
       );
     });
@@ -503,6 +520,7 @@ describe("POST /api/webhooks/stripe", () => {
           p_reason: "payment_recovered",
           p_evaluations_used: 0,
           p_last_evaluations_reset_at: expect.any(String),
+          p_event_type: "invoice.paid",
         }),
       );
     });
