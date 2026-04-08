@@ -10,6 +10,7 @@ export type SubscriptionRow = {
   evaluation_limit: number;
   project_limit: number;
   current_period_end: string | null;
+  cancel_at_period_end: boolean;
   next_reset_date: string | null;
 };
 
@@ -26,7 +27,7 @@ function getCachedSubscription(userId: string) {
         const { data, error } = await supabase
           .from("subscriptions")
           .select(
-            "status, plan, evaluations_used, evaluation_limit, project_limit, current_period_end",
+            "status, plan, evaluations_used, evaluation_limit, project_limit, current_period_end, cancel_at_period_end",
           )
           .eq("user_id", userId)
           .maybeSingle();

@@ -75,6 +75,7 @@ export default async function BillingPage({
                     plan: currentPlan,
                     status: subscriptionStatus!,
                     currentPeriodEnd: subscription.current_period_end,
+                    cancelAtPeriodEnd: subscription.cancel_at_period_end,
                     nextResetDate: subscription.next_reset_date,
                   }
                 : null

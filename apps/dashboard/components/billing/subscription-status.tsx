@@ -6,14 +6,37 @@ type SubscriptionState = {
   plan: PlanName;
   status: "active" | "past_due" | "canceled";
   currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
   nextResetDate: string | null;
 };
 
-const statusConfig = {
-  active: { label: "Active", variant: "default" as const },
-  past_due: { label: "Past due", variant: "destructive" as const },
-  canceled: { label: "Canceled", variant: "secondary" as const },
-} as const;
+export function getSubscriptionDisplayState(
+  status: string,
+  cancelAtPeriodEnd: boolean,
+): {
+  label: string;
+  badgeVariant: "default" | "warning" | "destructive" | "secondary";
+  datePrefix: string;
+} {
+  if (status === "active" && cancelAtPeriodEnd) {
+    return {
+      label: "Canceling",
+      badgeVariant: "warning",
+      datePrefix: "Cancels",
+    };
+  }
+  if (status === "active") {
+    return { label: "Active", badgeVariant: "default", datePrefix: "Renews" };
+  }
+  if (status === "past_due") {
+    return {
+      label: "Past due",
+      badgeVariant: "destructive",
+      datePrefix: "Ended",
+    };
+  }
+  return { label: "Canceled", badgeVariant: "secondary", datePrefix: "Ended" };
+}
 
 export function SubscriptionStatus({
   subscription,
@@ -24,28 +47,43 @@ export function SubscriptionStatus({
   const planDisplay = getPlanDisplay(currentPlan);
   const isFree = currentPlan === "free";
   const status = subscription?.status ?? null;
-  const config = status && !isFree ? statusConfig[status] : null;
+
+  const displayState =
+    status && !isFree
+      ? getSubscriptionDisplayState(
+          status,
+          subscription?.cancelAtPeriodEnd ?? false,
+        )
+      : null;
 
   return (
     <div className="space-y-1">
       <div className="flex items-center gap-2">
         <h2 className="text-xl font-semibold">{planDisplay.label}</h2>
-        {config && <Badge variant={config.variant}>{config.label}</Badge>}
+        {displayState && (
+          <Badge
+            variant={displayState.badgeVariant}
+            data-testid="subscription-status-badge"
+          >
+            {displayState.label}
+          </Badge>
+        )}
         {isFree && <Badge variant="secondary">Free</Badge>}
       </div>
-      {subscription?.status === "active" &&
-        !isFree &&
-        subscription.currentPeriodEnd && (
-          <p className="text-sm text-muted-foreground">
-            Renews{" "}
-            <time dateTime={subscription.currentPeriodEnd}>
-              {new Date(subscription.currentPeriodEnd).toLocaleDateString(
-                undefined,
-                { month: "long", day: "numeric", year: "numeric" },
-              )}
-            </time>
-          </p>
-        )}
+      {displayState && subscription?.currentPeriodEnd && (
+        <p
+          className="text-sm text-muted-foreground"
+          data-testid="subscription-status-period-label"
+        >
+          {displayState.datePrefix}{" "}
+          <time dateTime={subscription.currentPeriodEnd}>
+            {new Date(subscription.currentPeriodEnd).toLocaleDateString(
+              undefined,
+              { month: "long", day: "numeric", year: "numeric" },
+            )}
+          </time>
+        </p>
+      )}
       {isFree && (
         <p className="text-sm text-muted-foreground">
           {subscription?.nextResetDate ? (
