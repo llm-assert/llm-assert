@@ -109,8 +109,7 @@ export default async function ProjectsPage() {
               className="text-sm text-muted-foreground"
               data-testid="project-quota-usage"
             >
-              {projectCount} of{" "}
-              {projectLimit < 0 ? "Unlimited" : projectLimit}{" "}
+              {projectCount} of {projectLimit < 0 ? "Unlimited" : projectLimit}{" "}
               {projectLimit === 1 ? "project" : "projects"} used
             </span>
             <CreateProjectDialog atProjectQuota={atProjectQuota} />
