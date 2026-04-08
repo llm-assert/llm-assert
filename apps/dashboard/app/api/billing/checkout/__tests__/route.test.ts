@@ -59,7 +59,11 @@ function makeRequest(body?: unknown): Request {
 }
 
 function mockSubscriptionQuery(
-  data: { stripe_customer_id: string | null; status: string } | null,
+  data: {
+    stripe_customer_id: string | null;
+    status: string;
+    plan?: string;
+  } | null,
 ) {
   const single = vi.fn().mockResolvedValue({ data, error: null });
   const eq = vi.fn().mockReturnValue({ single });
@@ -126,6 +130,7 @@ describe("POST /api/billing/checkout", () => {
     mockSubscriptionQuery({
       stripe_customer_id: "cus_123",
       status: "active",
+      plan: "starter",
     });
 
     const res = await POST(makeRequest({ priceId: "price_starter_test" }));
@@ -141,6 +146,7 @@ describe("POST /api/billing/checkout", () => {
     mockSubscriptionQuery({
       stripe_customer_id: null,
       status: "active",
+      plan: "free",
     });
     mockCreateSession.mockResolvedValue({
       url: "https://checkout.stripe.com/session_free_upgrade",
@@ -161,6 +167,40 @@ describe("POST /api/billing/checkout", () => {
     );
     expect(mockCreateSession).not.toHaveBeenCalledWith(
       expect.objectContaining({ customer: expect.any(String) }),
+    );
+  });
+
+  it("allows checkout for downgraded free-tier user with stripe_customer_id", async () => {
+    mockGetUser.mockResolvedValue({
+      data: {
+        user: { id: "user-downgraded", email: "downgraded@example.com" },
+      },
+    });
+    mockSubscriptionQuery({
+      stripe_customer_id: "cus_returning",
+      status: "active",
+      plan: "free",
+    });
+    mockCreateSession.mockResolvedValue({
+      url: "https://checkout.stripe.com/session_reupgrade",
+    });
+
+    const res = await POST(makeRequest({ priceId: "price_pro_test" }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      url: "https://checkout.stripe.com/session_reupgrade",
+    });
+
+    // Downgraded user has existing Stripe customer — should reuse it
+    expect(mockCreateSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        customer: "cus_returning",
+        client_reference_id: "user-downgraded",
+      }),
+    );
+    // Should NOT pass customer_email when reusing existing customer
+    expect(mockCreateSession).not.toHaveBeenCalledWith(
+      expect.objectContaining({ customer_email: expect.any(String) }),
     );
   });
 

@@ -3,7 +3,7 @@ import { revalidateTag } from "next/cache";
 import { stripe } from "@/lib/stripe";
 import { serverEnv } from "@/lib/env.server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { planFromPriceId } from "@/lib/plans";
+import { planFromPriceId, PLANS } from "@/lib/plans";
 
 export const maxDuration = 30;
 
@@ -206,7 +206,14 @@ async function handleSubscriptionDeleted(
 
   const { error } = await db
     .from("subscriptions")
-    .update({ status: "canceled", current_period_end: null })
+    .update({
+      plan: "free",
+      status: "active",
+      evaluation_limit: PLANS.free.evaluationLimit,
+      evaluations_used: 0,
+      last_evaluations_reset_at: new Date().toISOString(),
+      current_period_end: null,
+    })
     .eq("stripe_customer_id", customerId);
 
   if (error) throw error;

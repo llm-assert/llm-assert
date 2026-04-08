@@ -32,11 +32,11 @@ export async function POST(request: Request): Promise<Response> {
   // Check existing subscription
   const { data: subscription } = await supabase
     .from("subscriptions")
-    .select("stripe_customer_id, status")
+    .select("stripe_customer_id, status, plan")
     .eq("user_id", user.id)
     .single();
 
-  if (subscription?.status === "active" && subscription?.stripe_customer_id) {
+  if (subscription?.status === "active" && subscription?.plan !== "free") {
     return Response.json(
       {
         error:
