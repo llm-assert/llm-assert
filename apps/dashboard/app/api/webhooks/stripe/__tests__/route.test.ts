@@ -261,6 +261,7 @@ describe("POST /api/webhooks/stripe", () => {
           stripe_customer_id: "cus_123",
           stripe_subscription_id: "sub_123",
           status: "active",
+          project_limit: 3,
         }),
         { onConflict: "user_id" },
       );

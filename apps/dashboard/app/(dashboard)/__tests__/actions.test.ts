@@ -218,4 +218,16 @@ describe("createProjectAction", () => {
       expect(result.error).toBe("unauthorized");
     });
   });
+
+  describe("edge cases", () => {
+    it("defaults to limit=1 when no subscription row exists", async () => {
+      setupMocks({
+        projectCount: 1,
+        subscription: null,
+      });
+
+      const result = await createProjectAction(initialState, makeFormData());
+      expect(result.error).toBe("project_limit_reached");
+    });
+  });
 });

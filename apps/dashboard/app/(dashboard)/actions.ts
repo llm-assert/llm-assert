@@ -144,7 +144,7 @@ export async function createProjectAction(
 
   revalidatePath("/", "page");
 
-  console.error(
+  console.log(
     JSON.stringify({
       source: "projects/create",
       event: "created",

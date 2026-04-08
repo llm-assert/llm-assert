@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/queries/get-auth-user";
+import { getSubscription } from "@/lib/supabase/queries/subscription";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { CreateProjectDialog } from "@/components/create-project-dialog";
 import { OnboardingChecklist } from "@/components/onboarding-checklist";
@@ -16,7 +17,7 @@ export default async function ProjectsPage() {
   const user = await requireAuth();
   const supabase = await createClient();
 
-  const [{ data: projects, error: projectsError }, { data: subscription }] =
+  const [{ data: projects, error: projectsError }, subscription] =
     await Promise.all([
       supabase
         .from("projects")
@@ -24,11 +25,7 @@ export default async function ProjectsPage() {
         // RLS perf hint — not a security boundary (see CLAUDE.md)
         .eq("user_id", user.id)
         .order("updated_at", { ascending: false }),
-      supabase
-        .from("subscriptions")
-        .select("project_limit")
-        .eq("user_id", user.id)
-        .maybeSingle(),
+      getSubscription(user.id),
     ]);
 
   if (projectsError) {

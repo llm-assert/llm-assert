@@ -1,7 +1,7 @@
 -- SEC-10: Add quota enforcement to create_project_with_key RPC
 -- Checks project_limit from subscriptions before allowing project creation.
 -- Returns 'quota_exceeded' or 'no_subscription' status rows on failure.
--- Uses FOR SHARE lock on subscription row to prevent concurrent bypass.
+-- Uses FOR UPDATE lock on subscription row to serialize concurrent requests.
 
 CREATE OR REPLACE FUNCTION public.create_project_with_key(
   p_user_id     uuid,
@@ -32,11 +32,12 @@ BEGIN
       USING errcode = 'P0001';
   END IF;
 
-  -- Quota check: read project_limit with FOR SHARE lock to prevent concurrent bypass
+  -- Quota check: FOR UPDATE lock serializes concurrent requests for the same user.
+  -- FOR SHARE would allow two concurrent reads (both see count=0), defeating the guard.
   SELECT s.project_limit INTO v_limit
   FROM public.subscriptions s
   WHERE s.user_id = p_user_id AND s.status = 'active'
-  FOR SHARE;
+  FOR UPDATE;
 
   IF NOT FOUND THEN
     RETURN QUERY SELECT 'no_subscription'::text, null::uuid, null::text;
