@@ -237,6 +237,23 @@ describe("POST /api/webhooks/stripe", () => {
       expect(res.status).toBe(200);
       expect(mockRpc).not.toHaveBeenCalled();
     });
+
+    it("returns 200 without re-processing on duplicate cancellation event", async () => {
+      mockInsert.mockResolvedValue({
+        error: { code: "23505", message: "duplicate key" },
+      });
+
+      const body = buildEvent("customer.subscription.updated", {
+        customer: "cus_cancel_dup",
+        cancel_at_period_end: true,
+        items: { data: [{ price: { id: "price_pro_test" } }] },
+        status: "active",
+      });
+      const res = await POST(makeRequest(body));
+
+      expect(res.status).toBe(200);
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
   });
 
   describe("event handlers with audit trail", () => {
@@ -330,6 +347,69 @@ describe("POST /api/webhooks/stripe", () => {
           p_reason: "subscription_updated",
           p_evaluation_limit: 25000,
           p_project_limit: 10,
+        }),
+      );
+    });
+
+    it("customer.subscription.updated with cancel_at_period_end=true — RPC called with p_cancel_at_period_end=true", async () => {
+      mockPreRead({
+        user_id: "test-user-id",
+        plan: "pro",
+        status: "active",
+      });
+
+      const periodEnd = Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60;
+      const body = buildEvent("customer.subscription.updated", {
+        customer: "cus_canceling",
+        status: "active",
+        cancel_at_period_end: true,
+        items: {
+          data: [
+            {
+              price: { id: "price_pro_test" },
+              current_period_end: periodEnd,
+            },
+          ],
+        },
+      });
+
+      const res = await POST(makeRequest(body));
+      expect(res.status).toBe(200);
+      expect(mockRpc).toHaveBeenCalledWith(
+        "record_plan_transition",
+        expect.objectContaining({
+          p_old_plan: "pro",
+          p_new_plan: "pro",
+          p_old_status: "active",
+          p_new_status: "active",
+          p_reason: "subscription_updated",
+          p_cancel_at_period_end: true,
+        }),
+      );
+    });
+
+    it("customer.subscription.updated with cancel_at_period_end=false (reactivation) — RPC called with p_cancel_at_period_end=false", async () => {
+      mockPreRead({
+        user_id: "test-user-id",
+        plan: "pro",
+        status: "active",
+      });
+
+      const body = buildEvent("customer.subscription.updated", {
+        customer: "cus_reactivated",
+        status: "active",
+        cancel_at_period_end: false,
+        items: {
+          data: [{ price: { id: "price_pro_test" } }],
+        },
+      });
+
+      const res = await POST(makeRequest(body));
+      expect(res.status).toBe(200);
+      expect(mockRpc).toHaveBeenCalledWith(
+        "record_plan_transition",
+        expect.objectContaining({
+          p_cancel_at_period_end: false,
         }),
       );
     });
