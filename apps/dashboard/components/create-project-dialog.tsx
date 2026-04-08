@@ -226,6 +226,7 @@ export function CreateProjectDialog({
               {state.error === "project_limit_reached" && (
                 <Alert
                   variant="destructive"
+                  role="alert"
                   data-testid="create-project-error"
                 >
                   <AlertCircle className="size-4" />
