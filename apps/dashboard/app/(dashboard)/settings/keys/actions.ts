@@ -4,6 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { generateApiKey } from "@/lib/api-keys";
+import { checkRateLimit, getMutationRateLimitConfig } from "@/lib/rate-limit";
 
 const MAX_KEYS_PER_PROJECT = 10;
 
@@ -21,6 +22,7 @@ const CreateKeySchema = z.object({
 export type CreateApiKeyState = {
   error?:
     | "unauthorized"
+    | "rate_limited"
     | "invalid_label"
     | "project_not_found"
     | "key_limit_reached"
@@ -41,6 +43,11 @@ export async function createApiKeyAction(
 
   if (!user) {
     return { error: "unauthorized" };
+  }
+
+  const rl = await checkRateLimit(`mutation:key:${user.id}`, getMutationRateLimitConfig("key"));
+  if (rl.limited) {
+    return { error: "rate_limited" };
   }
 
   const parsed = CreateKeySchema.safeParse({

@@ -10,6 +10,13 @@ import { publicEnv } from "@/lib/env";
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // ── CSP nonce generation ───────────────────────────────────────────
+  // Per Next.js 16 docs: generate nonce in proxy, pass via x-nonce header,
+  // read in root layout via headers(). This is stronger than 'unsafe-inline'.
+  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
+  const isDev = process.env.NODE_ENV === "development";
+  const cspHeader = `default-src 'self'; script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${isDev ? "'unsafe-eval'" : ""} https://js.stripe.com; style-src 'self' ${isDev ? "'unsafe-inline'" : `'nonce-${nonce}'`}; img-src 'self' blob: data:; font-src 'self'; connect-src 'self' https://*.supabase.co; frame-src https://js.stripe.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests;`;
+
   // FEAT-106: Redirect *.vercel.app to canonical custom domain in production.
   // Fires before Supabase session refresh to avoid wasted getUser() round-trips.
   // API paths are excluded — POST redirects break most HTTP clients.
@@ -43,6 +50,10 @@ export async function proxy(request: NextRequest) {
     }
   }
 
+  // Inject nonce into request headers so Server Components can read it
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-nonce", nonce);
+
   // Skip auth for static SEO routes (high-frequency crawler endpoints)
   if (
     pathname === "/robots.txt" ||
@@ -50,11 +61,13 @@ export async function proxy(request: NextRequest) {
     pathname === "/opengraph-image" ||
     pathname === "/twitter-image"
   ) {
-    return NextResponse.next({ request });
+    const res = NextResponse.next({ request: { headers: requestHeaders } });
+    res.headers.set("Content-Security-Policy-Report-Only", cspHeader);
+    return res;
   }
 
   let supabaseResponse = NextResponse.next({
-    request,
+    request: { headers: requestHeaders },
   });
 
   const supabase = createServerClient(
@@ -70,7 +83,7 @@ export async function proxy(request: NextRequest) {
             request.cookies.set(name, value),
           );
           supabaseResponse = NextResponse.next({
-            request,
+            request: { headers: requestHeaders },
           });
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options),
@@ -124,6 +137,7 @@ export async function proxy(request: NextRequest) {
     return redirectResponse;
   }
 
+  supabaseResponse.headers.set("Content-Security-Policy-Report-Only", cspHeader);
   return supabaseResponse;
 }
 

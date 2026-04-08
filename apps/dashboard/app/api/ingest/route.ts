@@ -3,6 +3,7 @@ import { after } from "next/server";
 import { revalidateTag } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { computeNextResetDate } from "@/lib/billing/reset-date";
+import { checkRateLimit, getApiRateLimitConfig } from "@/lib/rate-limit";
 import { IngestPayloadSchema } from "./schema";
 
 export const maxDuration = 30;
@@ -91,6 +92,25 @@ export async function POST(request: Request): Promise<Response> {
 
     if (keyError || !apiKey) {
       return errorResponse("UNAUTHORIZED", "Missing or invalid API key", 401);
+    }
+
+    // 3b. Per-API-key rate limiting (check before body parse to save resources)
+    const rateLimitResult = await checkRateLimit(
+      `api:${apiKey.id}`,
+      getApiRateLimitConfig(),
+    );
+    if (rateLimitResult.limited) {
+      return new Response(
+        JSON.stringify({ error: { code: "RATE_LIMITED", message: "Too many requests" } }),
+        {
+          status: 429,
+          headers: {
+            "Content-Type": "application/json",
+            "Retry-After": String(rateLimitResult.retryAfterSeconds),
+            ...CORS_HEADERS,
+          },
+        },
+      );
     }
 
     // 4. Read body with size check, then parse JSON

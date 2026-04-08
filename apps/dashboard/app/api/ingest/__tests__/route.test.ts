@@ -27,6 +27,12 @@ vi.mock("@/lib/billing/reset-date", () => ({
   computeNextResetDate: () => "2026-05-01T00:00:00Z",
 }));
 
+const mockCheckRateLimit = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/rate-limit", () => ({
+  checkRateLimit: mockCheckRateLimit,
+  getApiRateLimitConfig: () => ({ windowMs: 60_000, maxRequests: 100 }),
+}));
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -128,6 +134,7 @@ describe("POST /api/ingest body size limits", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     mockAuthSuccess();
+    mockCheckRateLimit.mockResolvedValue({ limited: false, retryAfterSeconds: 0 });
   });
 
   it("returns 413 when Content-Length header exceeds 1 MB", async () => {
@@ -197,5 +204,45 @@ describe("POST /api/ingest body size limits", () => {
     const response = await POST(request);
 
     expect(response.status).toBe(401);
+  });
+});
+
+describe("POST /api/ingest rate limiting", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    mockAuthSuccess();
+    mockCheckRateLimit.mockResolvedValue({ limited: false, retryAfterSeconds: 0 });
+  });
+
+  it("returns 429 with Retry-After when rate limited", async () => {
+    mockCheckRateLimit.mockResolvedValue({ limited: true, retryAfterSeconds: 42 });
+
+    const body = JSON.stringify(buildIngestPayload());
+    const request = makeRequest(body);
+    const response = await POST(request);
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get("Retry-After")).toBe("42");
+    const json = JSON.parse(await response.text());
+    expect(json.error.code).toBe("RATE_LIMITED");
+  });
+
+  it("passes rate limit key using API key ID", async () => {
+    const body = JSON.stringify(buildIngestPayload());
+    const request = makeRequest(body);
+    await POST(request);
+
+    expect(mockCheckRateLimit).toHaveBeenCalledWith(
+      "api:key-1",
+      expect.objectContaining({ windowMs: 60_000, maxRequests: 100 }),
+    );
+  });
+
+  it("does not increment rate limit counter for invalid auth", async () => {
+    const body = JSON.stringify(buildIngestPayload());
+    const request = makeRequest(body, { noAuth: true });
+    await POST(request);
+
+    expect(mockCheckRateLimit).not.toHaveBeenCalled();
   });
 });

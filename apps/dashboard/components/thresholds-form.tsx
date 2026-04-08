@@ -145,7 +145,9 @@ export function ThresholdsForm({
               ? "Invalid threshold values. Each must be between 0 and 1."
               : state.error === "project_not_found"
                 ? "Project not found."
-                : "Failed to save thresholds. Please try again."}
+                : state.error === "rate_limited"
+                  ? "Too many requests. Please wait a moment and try again."
+                  : "Failed to save thresholds. Please try again."}
           </p>
         )}
       </div>

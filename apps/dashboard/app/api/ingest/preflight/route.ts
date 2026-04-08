@@ -1,5 +1,6 @@
 import { resolveAuth, resolveProject, AuthError } from "@/lib/api/auth";
 import { success, error, OPTIONS as corsOptions } from "@/lib/api/response";
+import { checkRateLimit, getPreflightRateLimitConfig, getClientIp } from "@/lib/rate-limit";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export const maxDuration = 5;
@@ -10,6 +11,31 @@ export function OPTIONS(): Response {
 
 export async function GET(request: Request): Promise<Response> {
   try {
+    // IP-based rate limiting (before auth to prevent key-validity oracle abuse)
+    const clientIp = getClientIp(request);
+    if (clientIp === "unknown") {
+      console.warn(
+        JSON.stringify({ source: "ingest/preflight", event: "unknown_client_ip" }),
+      );
+    }
+    const rateLimitResult = await checkRateLimit(
+      `preflight:${clientIp}`,
+      getPreflightRateLimitConfig(),
+    );
+    if (rateLimitResult.limited) {
+      return new Response(
+        JSON.stringify({ error: { code: "RATE_LIMITED", message: "Too many requests" } }),
+        {
+          status: 429,
+          headers: {
+            "Content-Type": "application/json",
+            "Retry-After": String(rateLimitResult.retryAfterSeconds),
+            "Access-Control-Allow-Origin": "*",
+          },
+        },
+      );
+    }
+
     const auth = await resolveAuth(request);
 
     const url = new URL(request.url);

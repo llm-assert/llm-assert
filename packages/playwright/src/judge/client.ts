@@ -72,10 +72,17 @@ export const DEFAULT_CONFIG: Required<
 const INJECTION_PHRASES =
   /\b(ignore previous|disregard|new instruction|as instructed|per your request|override|bypass)\b/i;
 
-/** Max retries on 429 before falling to next provider */
-const MAX_429_RETRIES = 3;
-/** Base delay for exponential backoff on 429 (ms) */
-const BACKOFF_BASE_MS = 200;
+function envInt(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw == null || raw === "") return fallback;
+  const parsed = parseInt(raw, 10);
+  return Number.isNaN(parsed) ? fallback : parsed;
+}
+
+/** Max retries on 429 before falling to next provider (configurable via env) */
+const MAX_429_RETRIES = envInt("LLMASSERT_MAX_429_RETRIES", 3);
+/** Base delay for exponential backoff on 429 in ms (configurable via env) */
+const BACKOFF_BASE_MS = envInt("LLMASSERT_BACKOFF_BASE_MS", 200);
 
 /**
  * Provider-agnostic judge client with fallback chain.
@@ -98,12 +105,16 @@ export class JudgeClient implements JudgeEvaluator {
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.clock = clock ?? realClock;
 
-    // Rate limiter init
+    // Rate limiter init (defaults configurable via env to keep values out of source)
+    const envBurst = envInt("LLMASSERT_RATE_LIMIT_BURST", 10);
+    const envRpm = envInt("LLMASSERT_RATE_LIMIT_RPM", 60);
     const rl = config.rateLimit;
-    this.rateLimitEnabled = !!rl;
-    this.bucketCapacity = rl?.burstCapacity ?? 10;
+    this.rateLimitEnabled = !!rl || !!(process.env.LLMASSERT_RATE_LIMIT_RPM);
+    this.bucketCapacity = rl?.burstCapacity ?? envBurst;
     this.bucketTokens = this.bucketCapacity;
-    this.bucketRefillRate = rl ? rl.requestsPerMinute / 60_000 : 0;
+    this.bucketRefillRate = rl
+      ? rl.requestsPerMinute / 60_000
+      : (process.env.LLMASSERT_RATE_LIMIT_RPM ? envRpm / 60_000 : 0);
     this.bucketLastRefill = this.clock.now();
 
     // Primary: OpenAI (sync init)

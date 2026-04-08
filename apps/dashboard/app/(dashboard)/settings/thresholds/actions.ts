@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit, getMutationRateLimitConfig } from "@/lib/rate-limit";
 
 const ASSERTION_TYPES = [
   "groundedness",
@@ -29,6 +30,7 @@ const SaveThresholdsSchema = z.object({
 export type SaveThresholdsState = {
   error?:
     | "unauthorized"
+    | "rate_limited"
     | "project_not_found"
     | "validation_failed"
     | "unknown";
@@ -46,6 +48,11 @@ export async function saveThresholdsAction(
 
   if (!user) {
     return { error: "unauthorized" };
+  }
+
+  const rl = await checkRateLimit(`mutation:threshold:${user.id}`, getMutationRateLimitConfig("threshold"));
+  if (rl.limited) {
+    return { error: "rate_limited" };
   }
 
   const parsed = SaveThresholdsSchema.safeParse({

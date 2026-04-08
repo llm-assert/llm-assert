@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { generateApiKey } from "@/lib/api-keys";
 import { validateSlug } from "@/lib/slugify";
+import { checkRateLimit, getMutationRateLimitConfig } from "@/lib/rate-limit";
 
 export async function signOutAction() {
   const supabase = await createClient();
@@ -41,6 +42,7 @@ export async function dismissOnboardingAction() {
 export type CreateProjectState = {
   error?:
     | "unauthorized"
+    | "rate_limited"
     | "invalid_name"
     | "invalid_slug"
     | "slug_taken"
@@ -64,6 +66,11 @@ export async function createProjectAction(
 
   if (!user) {
     return { error: "unauthorized" };
+  }
+
+  const rl = await checkRateLimit(`mutation:project:${user.id}`, getMutationRateLimitConfig("project"));
+  if (rl.limited) {
+    return { error: "rate_limited" };
   }
 
   // UX guard only — the RPC is the security boundary
