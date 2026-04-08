@@ -11,6 +11,7 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "test:smoke": "pnpm --filter @llmassert/playwright build && playwright test --config e2e-smoke/playwright.config.ts",
+    "rpc-audit": "tsx scripts/rpc-audit.ts",
     "format:check": "prettier --check .",
     "changeset": "changeset",
     "version-packages": "changeset version",

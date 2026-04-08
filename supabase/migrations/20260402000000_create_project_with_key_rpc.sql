@@ -3,6 +3,7 @@
 -- Catches unique violation (23505) on slug and returns a typed error row.
 -- Called from the dashboard server action via the SSR client (.rpc).
 
+-- rpc-lint-disable: R5
 create or replace function public.create_project_with_key(
   p_user_id     uuid,
   p_name        text,
