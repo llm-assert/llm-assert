@@ -64,7 +64,7 @@ supabase/migrations/     # Postgres DDL with RLS
 
 ## Deployment
 
-- Production deploys are **CI-gated**: pushes to `main` trigger a preview build via Vercel Git Integration, then the `promote` job in `ci.yml` builds and deploys to production via `vercel deploy --prebuilt --prod` after all CI jobs pass
+- Production deploys are **CI-gated**: pushes to `main` trigger the `promote` job in `ci.yml` which deploys to production via `vercel deploy --prod` after all CI jobs pass (builds on Vercel's servers with production env vars)
 - Preview deployments on PRs are automatic (not gated by CI)
 - `llm-assert-docs` stays on automatic Vercel Git Integration (no CI gate)
 - Emergency bypass: use the `Emergency Promote` workflow via GitHub Actions `workflow_dispatch` — requires a deployment URL and reason
