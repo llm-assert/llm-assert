@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { IngestPayloadSchema } from "@/app/api/ingest/schema";
+import { generateApiKey } from "@/lib/api-keys";
 
 type Evaluation = {
   assertion_type: string;
@@ -72,4 +73,14 @@ export function buildIngestPayload(
 /** Self-validate: factory defaults must pass the schema. */
 export function assertFactoryDefaults(): void {
   IngestPayloadSchema.parse(buildIngestPayload());
+}
+
+export function buildApiKeyRecord(overrides?: { label?: string }) {
+  const key = generateApiKey();
+  return {
+    raw: key.raw,
+    hash: key.hash,
+    prefix: key.prefix,
+    label: overrides?.label ?? `test-key-${randomUUID().slice(0, 8)}`,
+  };
 }
