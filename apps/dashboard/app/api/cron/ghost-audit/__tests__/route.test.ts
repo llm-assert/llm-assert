@@ -5,10 +5,15 @@ import * as routeModule from "../route";
 // Mocks
 // ---------------------------------------------------------------------------
 
-const { CRON_SECRET, mockRpc } = vi.hoisted(() => ({
-  CRON_SECRET: "cron_test_secret_for_unit_tests_64chars_minimum_hex_value_ok",
-  mockRpc: vi.fn(),
-}));
+const { CRON_SECRET, mockRpc, mockLoggerInfo, mockLoggerError } = vi.hoisted(
+  () => ({
+    CRON_SECRET:
+      "cron_test_secret_for_unit_tests_64chars_minimum_hex_value_ok",
+    mockRpc: vi.fn(),
+    mockLoggerInfo: vi.fn(),
+    mockLoggerError: vi.fn(),
+  }),
+);
 
 vi.mock("@/lib/supabase/admin", () => ({
   supabaseAdmin: () => ({
@@ -22,6 +27,25 @@ vi.mock("@/lib/env.server", () => ({
       return CRON_SECRET;
     },
   },
+}));
+
+vi.mock("@/lib/logger", () => ({
+  createLogger: vi.fn((source: string) => ({
+    info: (...args: unknown[]) =>
+      mockLoggerInfo(
+        { source, ...(args[0] as Record<string, unknown>) },
+        args[1],
+      ),
+    error: (...args: unknown[]) =>
+      mockLoggerError(
+        { source, ...(args[0] as Record<string, unknown>) },
+        args[1],
+      ),
+    warn: vi.fn(),
+    debug: vi.fn(),
+    child: vi.fn(),
+  })),
+  logger: {},
 }));
 
 // ---------------------------------------------------------------------------
@@ -76,12 +100,8 @@ beforeEach(() => {
     data: makeCleanResult(),
     error: null,
   });
-  vi.spyOn(console, "log").mockImplementation(() => {});
-  vi.spyOn(console, "error").mockImplementation(() => {});
-});
-
-afterEach(() => {
-  vi.restoreAllMocks();
+  mockLoggerInfo.mockClear();
+  mockLoggerError.mockClear();
 });
 
 // ---------------------------------------------------------------------------
@@ -143,31 +163,24 @@ describe("GET /api/cron/ghost-audit", () => {
 
     it("emits ghost_audit_clean at INFO level", async () => {
       mockRpc.mockResolvedValue({ data: makeCleanResult(), error: null });
-      const logSpy = vi.spyOn(console, "log");
 
       await GET(makeRequest(`Bearer ${CRON_SECRET}`));
 
-      const logged = logSpy.mock.calls.find(
-        (call) =>
-          typeof call[0] === "string" &&
-          call[0].includes('"event":"ghost_audit_clean"'),
+      const logged = mockLoggerInfo.mock.calls.find(
+        (call) => call[0]?.event === "ghost_audit_clean",
       );
       expect(logged).toBeDefined();
-      const entry = JSON.parse(logged![0] as string);
-      expect(entry.source).toBe("cron-ghost-audit");
-      expect(entry.ghost_count).toBe(0);
+      expect(logged![0].source).toBe("cron-ghost-audit");
+      expect(logged![0].ghost_count).toBe(0);
     });
 
-    it("does not emit to console.error when clean", async () => {
+    it("does not emit to error level when clean", async () => {
       mockRpc.mockResolvedValue({ data: makeCleanResult(), error: null });
-      const errorSpy = vi.spyOn(console, "error");
 
       await GET(makeRequest(`Bearer ${CRON_SECRET}`));
 
-      const ghostLog = errorSpy.mock.calls.find(
-        (call) =>
-          typeof call[0] === "string" &&
-          call[0].includes('"event":"ghost_events_detected"'),
+      const ghostLog = mockLoggerError.mock.calls.find(
+        (call) => call[0]?.event === "ghost_events_detected",
       );
       expect(ghostLog).toBeUndefined();
     });
@@ -190,23 +203,19 @@ describe("GET /api/cron/ghost-audit", () => {
 
     it("emits ghost_events_detected at ERROR level when definite_count > 0", async () => {
       mockRpc.mockResolvedValue({ data: makeGhostResult(), error: null });
-      const errorSpy = vi.spyOn(console, "error");
 
       await GET(makeRequest(`Bearer ${CRON_SECRET}`));
 
-      const logged = errorSpy.mock.calls.find(
-        (call) =>
-          typeof call[0] === "string" &&
-          call[0].includes('"event":"ghost_events_detected"'),
+      const logged = mockLoggerError.mock.calls.find(
+        (call) => call[0]?.event === "ghost_events_detected",
       );
       expect(logged).toBeDefined();
-      const entry = JSON.parse(logged![0] as string);
-      expect(entry.source).toBe("cron-ghost-audit");
-      expect(entry.ghost_count).toBe(3);
-      expect(entry.definite_count).toBe(2);
-      expect(entry.oldest_ghost_at).toBe("2026-04-04T10:00:00Z");
-      expect(entry.newest_ghost_at).toBe("2026-04-07T14:30:00Z");
-      expect(entry.sample_event_ids).toHaveLength(3);
+      expect(logged![0].source).toBe("cron/ghost-audit");
+      expect(logged![0].ghostCount).toBe(3);
+      expect(logged![0].definiteCount).toBe(2);
+      expect(logged![0].oldestGhostAt).toBe("2026-04-04T10:00:00Z");
+      expect(logged![0].newestGhostAt).toBe("2026-04-07T14:30:00Z");
+      expect(logged![0].sampleEventIds).toHaveLength(3);
     });
 
     it("emits clean log when only possible_noop ghosts exist", async () => {
@@ -216,24 +225,18 @@ describe("GET /api/cron/ghost-audit", () => {
         possible_noop_count: 2,
       });
       mockRpc.mockResolvedValue({ data: noopOnly, error: null });
-      const logSpy = vi.spyOn(console, "log");
-      const errorSpy = vi.spyOn(console, "error");
 
       await GET(makeRequest(`Bearer ${CRON_SECRET}`));
 
       // Should use INFO level (no definite ghosts)
-      const infoLog = logSpy.mock.calls.find(
-        (call) =>
-          typeof call[0] === "string" &&
-          call[0].includes('"event":"ghost_audit_clean"'),
+      const infoLog = mockLoggerInfo.mock.calls.find(
+        (call) => call[0]?.event === "ghost_audit_clean",
       );
       expect(infoLog).toBeDefined();
 
       // Should NOT emit error-level ghost detection
-      const errorLog = errorSpy.mock.calls.find(
-        (call) =>
-          typeof call[0] === "string" &&
-          call[0].includes('"event":"ghost_events_detected"'),
+      const errorLog = mockLoggerError.mock.calls.find(
+        (call) => call[0]?.event === "ghost_events_detected",
       );
       expect(errorLog).toBeUndefined();
     });
@@ -264,7 +267,6 @@ describe("GET /api/cron/ghost-audit", () => {
     });
 
     it("logs error on database failure", async () => {
-      const errorSpy = vi.spyOn(console, "error");
       mockRpc.mockResolvedValue({
         data: null,
         error: { code: "42501", message: "db error" },
@@ -272,30 +274,23 @@ describe("GET /api/cron/ghost-audit", () => {
 
       await GET(makeRequest(`Bearer ${CRON_SECRET}`));
 
-      const logged = errorSpy.mock.calls.find(
-        (call) =>
-          typeof call[0] === "string" && call[0].includes('"event":"error"'),
+      const logged = mockLoggerError.mock.calls.find(
+        (call) => call[0]?.event === "error",
       );
       expect(logged).toBeDefined();
-      const entry = JSON.parse(logged![0] as string);
-      expect(entry.error).toBe("db error");
+      expect(logged![0].error).toBe("db error");
     });
   });
 
   describe("logging", () => {
     it("logs auth_failure on unauthorized access", async () => {
-      const errorSpy = vi.spyOn(console, "error");
-
       await GET(makeRequest("Bearer wrong"));
 
-      const logged = errorSpy.mock.calls.find(
-        (call) =>
-          typeof call[0] === "string" &&
-          call[0].includes('"event":"auth_failure"'),
+      const logged = mockLoggerError.mock.calls.find(
+        (call) => call[0]?.event === "auth_failure",
       );
       expect(logged).toBeDefined();
-      const entry = JSON.parse(logged![0] as string);
-      expect(entry.source).toBe("cron-ghost-audit");
+      expect(logged![0].source).toBe("cron-ghost-audit");
     });
 
     it("calls ghost_event_audit RPC by name", async () => {

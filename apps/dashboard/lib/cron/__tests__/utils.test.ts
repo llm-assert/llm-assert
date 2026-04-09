@@ -4,8 +4,10 @@ import { verifyCronSecret, logCron } from "../utils";
 // Mocks
 // ---------------------------------------------------------------------------
 
-const { CRON_SECRET } = vi.hoisted(() => ({
+const { CRON_SECRET, mockLoggerInfo, mockLoggerError } = vi.hoisted(() => ({
   CRON_SECRET: "cron_test_secret_for_unit_tests_64chars_minimum_hex_value_ok",
+  mockLoggerInfo: vi.fn(),
+  mockLoggerError: vi.fn(),
 }));
 
 vi.mock("@/lib/env.server", () => ({
@@ -15,6 +17,20 @@ vi.mock("@/lib/env.server", () => ({
     },
   },
 }));
+
+vi.mock("@/lib/logger", () => {
+  const mockLogger = {
+    info: mockLoggerInfo,
+    error: mockLoggerError,
+    warn: vi.fn(),
+    debug: vi.fn(),
+    child: vi.fn(() => mockLogger),
+  };
+  return {
+    logger: mockLogger,
+    createLogger: vi.fn(() => mockLogger),
+  };
+});
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -83,51 +99,41 @@ describe("verifyCronSecret", () => {
 
 describe("logCron", () => {
   beforeEach(() => {
-    vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    mockLoggerInfo.mockClear();
+    mockLoggerError.mockClear();
   });
 
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it("logs success events to stdout", () => {
+  it("logs success events at info level", () => {
     logCron("cron-test", "success", { count: 5 });
 
-    expect(console.log).toHaveBeenCalledOnce();
-    const entry = JSON.parse(
-      (console.log as ReturnType<typeof vi.fn>).mock.calls[0][0],
-    );
-    expect(entry.source).toBe("cron-test");
-    expect(entry.event).toBe("success");
-    expect(entry.count).toBe(5);
+    expect(mockLoggerInfo).toHaveBeenCalledOnce();
+    expect(mockLoggerInfo.mock.calls[0][0]).toMatchObject({
+      event: "success",
+      count: 5,
+    });
   });
 
-  it("logs error events to stderr", () => {
+  it("logs error events at error level", () => {
     logCron("cron-test", "error", { error: "db failure" });
 
-    expect(console.error).toHaveBeenCalledOnce();
-    const entry = JSON.parse(
-      (console.error as ReturnType<typeof vi.fn>).mock.calls[0][0],
-    );
-    expect(entry.source).toBe("cron-test");
-    expect(entry.event).toBe("error");
+    expect(mockLoggerError).toHaveBeenCalledOnce();
+    expect(mockLoggerError.mock.calls[0][0]).toMatchObject({
+      event: "error",
+    });
   });
 
-  it("logs auth_failure events to stderr", () => {
+  it("logs auth_failure events at error level", () => {
     logCron("cron-test", "auth_failure");
 
-    expect(console.error).toHaveBeenCalledOnce();
+    expect(mockLoggerError).toHaveBeenCalledOnce();
   });
 
   it("handles missing details parameter", () => {
     logCron("cron-test", "no_drift");
 
-    expect(console.log).toHaveBeenCalledOnce();
-    const entry = JSON.parse(
-      (console.log as ReturnType<typeof vi.fn>).mock.calls[0][0],
-    );
-    expect(entry.source).toBe("cron-test");
-    expect(entry.event).toBe("no_drift");
+    expect(mockLoggerInfo).toHaveBeenCalledOnce();
+    expect(mockLoggerInfo.mock.calls[0][0]).toMatchObject({
+      event: "no_drift",
+    });
   });
 });

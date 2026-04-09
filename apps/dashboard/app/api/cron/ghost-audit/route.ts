@@ -1,5 +1,8 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { verifyCronSecret, logCron } from "@/lib/cron/utils";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("cron/ghost-audit");
 
 export const maxDuration = 30;
 
@@ -35,19 +38,19 @@ export async function GET(request: Request): Promise<Response> {
   const durationMs = Math.round(performance.now() - start);
 
   if (result.definite_count > 0) {
-    console.error(
-      JSON.stringify({
-        source,
+    log.error(
+      {
         event: "ghost_events_detected",
-        ghost_count: result.ghost_count,
-        definite_count: result.definite_count,
-        possible_noop_count: result.possible_noop_count,
-        event_types: result.event_types,
-        oldest_ghost_at: result.oldest_ghost_at,
-        newest_ghost_at: result.newest_ghost_at,
-        sample_event_ids: result.sample_event_ids,
-        duration_ms: durationMs,
-      }),
+        ghostCount: result.ghost_count,
+        definiteCount: result.definite_count,
+        possibleNoopCount: result.possible_noop_count,
+        eventTypes: result.event_types,
+        oldestGhostAt: result.oldest_ghost_at,
+        newestGhostAt: result.newest_ghost_at,
+        sampleEventIds: result.sample_event_ids,
+        durationMs,
+      },
+      "ghost events detected",
     );
   } else {
     logCron(source, "ghost_audit_clean", {

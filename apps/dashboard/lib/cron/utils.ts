@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { serverEnv } from "@/lib/env.server";
+import { createLogger } from "@/lib/logger";
 
 /**
  * Timing-safe comparison of the Authorization header against the expected
@@ -26,21 +27,18 @@ export function verifyCronSecret(request: Request): boolean {
 
 /**
  * Emit a structured JSON log entry for cron operations.
- * Events matching "error" or "auth_failure" go to stderr; all others to stdout.
+ * Events matching "error" or "auth_failure" go to error level; all others to info.
  */
 export function logCron(
   source: string,
   event: string,
   details?: Record<string, unknown>,
 ): void {
-  const entry = {
-    source,
-    event,
-    ...details,
-  };
+  const log = createLogger(source);
+  const entry = { event, ...details };
   if (event === "error" || event === "auth_failure") {
-    console.error(JSON.stringify(entry));
+    log.error(entry, event);
   } else {
-    console.log(JSON.stringify(entry));
+    log.info(entry, event);
   }
 }

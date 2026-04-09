@@ -5,6 +5,9 @@ import { stripe } from "@/lib/stripe";
 import { serverEnv } from "@/lib/env.server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { planFromPriceId, PLANS } from "@/lib/plans";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("webhooks/stripe");
 
 export const maxDuration = 30;
 
@@ -73,6 +76,8 @@ export async function POST(request: Request): Promise<Response> {
         event.id,
         event.type,
         error instanceof Error ? error.message : String(error),
+        undefined,
+        event.livemode,
       );
     }
     return Response.json({ error: "Internal server error" }, { status: 500 });
@@ -124,14 +129,15 @@ async function callTransitionRPC(
   params: Record<string, unknown>,
   stripeEventId: string,
   eventType: string,
+  livemode?: boolean,
 ): Promise<"ok" | "duplicate"> {
   const { data, error } = await db.rpc("record_plan_transition", params);
   if (error) throw error;
   if (data === "duplicate") {
-    logWebhook("duplicate_skipped", stripeEventId, eventType);
+    logWebhook("duplicate_skipped", stripeEventId, eventType, undefined, undefined, livemode);
     return "duplicate";
   }
-  logWebhook("processed", stripeEventId, eventType, undefined, true);
+  logWebhook("processed", stripeEventId, eventType, undefined, true, livemode);
   return "ok";
 }
 
@@ -208,6 +214,7 @@ async function handleCheckoutCompleted(
     },
     stripeEventId,
     "checkout.session.completed",
+    session.livemode,
   );
 
   if (result === "duplicate") return;
@@ -280,6 +287,7 @@ async function handleSubscriptionUpdated(
     },
     stripeEventId,
     "customer.subscription.updated",
+    subscription.livemode,
   );
 
   if (result === "duplicate") return;
@@ -326,6 +334,7 @@ async function handleSubscriptionDeleted(
     },
     stripeEventId,
     "customer.subscription.deleted",
+    subscription.livemode,
   );
 
   if (result === "duplicate") return;
@@ -363,6 +372,7 @@ async function handleInvoicePaymentFailed(
     },
     stripeEventId,
     "invoice.payment_failed",
+    invoice.livemode,
   );
 
   if (result === "duplicate") return;
@@ -402,6 +412,7 @@ async function handleInvoicePaid(
     },
     stripeEventId,
     "invoice.paid",
+    invoice.livemode,
   );
 
   if (result === "duplicate") return;
@@ -421,19 +432,20 @@ function logWebhook(
   type: string,
   error?: string,
   auditWritten?: boolean,
+  livemode?: boolean,
 ): void {
   const entry = {
-    source: "stripe-webhook",
     event,
     stripeId,
     type,
+    ...(livemode !== undefined && { livemode }),
     ...(error && { error }),
     ...(auditWritten !== undefined && { auditWritten }),
   };
   if (error) {
-    console.error(JSON.stringify(entry));
+    log.error(entry, "webhook event");
   } else {
-    console.log(JSON.stringify(entry));
+    log.info(entry, "webhook event");
   }
 }
 

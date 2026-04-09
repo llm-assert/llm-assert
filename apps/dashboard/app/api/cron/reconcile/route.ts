@@ -4,6 +4,9 @@ import {
   ABNORMAL_RUN_DRIFT_THRESHOLD,
   ABNORMAL_QUOTA_DRIFT_THRESHOLD,
 } from "@/lib/cron/reconcile-config";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("cron/reconcile");
 
 export const maxDuration = 60;
 
@@ -50,23 +53,20 @@ export async function GET(request: Request): Promise<Response> {
     const severity = Math.abs(row.delta) > threshold ? "abnormal" : "normal";
 
     const driftEntry = {
-      source,
       event: "drift_detected",
-      drift_type: row.kind,
-      ...(row.kind === "run_counter"
-        ? { run_id: row.entity_id }
-        : { user_id: row.entity_id }),
-      stored_value: row.stored_value,
-      actual_value: row.actual_value,
+      driftType: row.kind,
+      entityId: row.entity_id,
+      storedValue: row.stored_value,
+      actualValue: row.actual_value,
       delta: row.delta,
       severity,
     };
 
-    // Abnormal drift goes to stderr for alerting; normal drift to stdout
+    // Abnormal drift goes to error level for alerting; normal drift to info
     if (severity === "abnormal") {
-      console.error(JSON.stringify(driftEntry));
+      log.error(driftEntry, "abnormal drift detected");
     } else {
-      console.log(JSON.stringify(driftEntry));
+      log.info(driftEntry, "drift detected");
     }
   }
 

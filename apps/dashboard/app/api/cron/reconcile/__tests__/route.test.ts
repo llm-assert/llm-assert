@@ -6,10 +6,15 @@ import * as routeModule from "../route";
 // variables. All values must be inlined or use vi.hoisted().
 // ---------------------------------------------------------------------------
 
-const { CRON_SECRET, mockRpc } = vi.hoisted(() => ({
-  CRON_SECRET: "cron_test_secret_for_unit_tests_64chars_minimum_hex_value_ok",
-  mockRpc: vi.fn(),
-}));
+const { CRON_SECRET, mockRpc, mockLoggerInfo, mockLoggerError } = vi.hoisted(
+  () => ({
+    CRON_SECRET:
+      "cron_test_secret_for_unit_tests_64chars_minimum_hex_value_ok",
+    mockRpc: vi.fn(),
+    mockLoggerInfo: vi.fn(),
+    mockLoggerError: vi.fn(),
+  }),
+);
 
 vi.mock("@/lib/supabase/admin", () => ({
   supabaseAdmin: () => ({
@@ -23,6 +28,25 @@ vi.mock("@/lib/env.server", () => ({
       return CRON_SECRET;
     },
   },
+}));
+
+vi.mock("@/lib/logger", () => ({
+  createLogger: vi.fn((source: string) => ({
+    info: (...args: unknown[]) =>
+      mockLoggerInfo(
+        { source, ...(args[0] as Record<string, unknown>) },
+        args[1],
+      ),
+    error: (...args: unknown[]) =>
+      mockLoggerError(
+        { source, ...(args[0] as Record<string, unknown>) },
+        args[1],
+      ),
+    warn: vi.fn(),
+    debug: vi.fn(),
+    child: vi.fn(),
+  })),
+  logger: {},
 }));
 
 // ---------------------------------------------------------------------------
@@ -53,12 +77,8 @@ function resetMocks() {
 
 beforeEach(() => {
   resetMocks();
-  vi.spyOn(console, "log").mockImplementation(() => {});
-  vi.spyOn(console, "error").mockImplementation(() => {});
-});
-
-afterEach(() => {
-  vi.restoreAllMocks();
+  mockLoggerInfo.mockClear();
+  mockLoggerError.mockClear();
 });
 
 describe("GET /api/cron/reconcile", () => {
@@ -137,17 +157,14 @@ describe("GET /api/cron/reconcile", () => {
 
     it("emits no_drift terminal event", async () => {
       mockRpc.mockResolvedValue({ data: [], error: null });
-      const logSpy = vi.spyOn(console, "log");
 
       await GET(makeRequest(`Bearer ${CRON_SECRET}`));
 
-      const logged = logSpy.mock.calls.find(
-        (call) =>
-          typeof call[0] === "string" && call[0].includes('"event":"no_drift"'),
+      const logged = mockLoggerInfo.mock.calls.find(
+        (call) => call[0]?.event === "no_drift",
       );
       expect(logged).toBeDefined();
-      const entry = JSON.parse(logged![0] as string);
-      expect(entry.source).toBe("cron-reconcile");
+      expect(logged![0].source).toBe("cron-reconcile");
     });
   });
 
@@ -197,28 +214,24 @@ describe("GET /api/cron/reconcile", () => {
             entity_id: "run-uuid-1",
             stored_value: 10,
             actual_value: 8,
-            delta: 2, // run_counter delta is always non-negative
+            delta: 2,
           },
         ],
         error: null,
       });
-      const logSpy = vi.spyOn(console, "log");
 
       await GET(makeRequest(`Bearer ${CRON_SECRET}`));
 
-      const driftLog = logSpy.mock.calls.find(
-        (call) =>
-          typeof call[0] === "string" &&
-          call[0].includes('"event":"drift_detected"'),
+      const driftLog = mockLoggerInfo.mock.calls.find(
+        (call) => call[0]?.event === "drift_detected",
       );
       expect(driftLog).toBeDefined();
-      const entry = JSON.parse(driftLog![0] as string);
-      expect(entry.severity).toBe("normal");
-      expect(entry.drift_type).toBe("run_counter");
-      expect(entry.run_id).toBe("run-uuid-1");
+      expect(driftLog![0].severity).toBe("normal");
+      expect(driftLog![0].driftType).toBe("run_counter");
+      expect(driftLog![0].entityId).toBe("run-uuid-1");
     });
 
-    it("classifies abnormal drift severity for large deltas and logs to stderr", async () => {
+    it("classifies abnormal drift severity for large deltas and logs at error level", async () => {
       mockRpc.mockResolvedValue({
         data: [
           {
@@ -231,23 +244,19 @@ describe("GET /api/cron/reconcile", () => {
         ],
         error: null,
       });
-      const errorSpy = vi.spyOn(console, "error");
 
       await GET(makeRequest(`Bearer ${CRON_SECRET}`));
 
-      const driftLog = errorSpy.mock.calls.find(
-        (call) =>
-          typeof call[0] === "string" &&
-          call[0].includes('"event":"drift_detected"'),
+      const driftLog = mockLoggerError.mock.calls.find(
+        (call) => call[0]?.event === "drift_detected",
       );
       expect(driftLog).toBeDefined();
-      const entry = JSON.parse(driftLog![0] as string);
-      expect(entry.severity).toBe("abnormal");
-      expect(entry.drift_type).toBe("run_counter");
-      expect(entry.delta).toBe(15);
+      expect(driftLog![0].severity).toBe("abnormal");
+      expect(driftLog![0].driftType).toBe("run_counter");
+      expect(driftLog![0].delta).toBe(15);
     });
 
-    it("uses user_id field for quota drift type", async () => {
+    it("uses entityId field for quota drift type", async () => {
       mockRpc.mockResolvedValue({
         data: [
           {
@@ -260,37 +269,28 @@ describe("GET /api/cron/reconcile", () => {
         ],
         error: null,
       });
-      // Quota delta=10 > threshold=5, so abnormal → console.error
-      const errorSpy = vi.spyOn(console, "error");
 
       await GET(makeRequest(`Bearer ${CRON_SECRET}`));
 
-      const driftLog = errorSpy.mock.calls.find(
-        (call) =>
-          typeof call[0] === "string" &&
-          call[0].includes('"event":"drift_detected"'),
+      const driftLog = mockLoggerError.mock.calls.find(
+        (call) => call[0]?.event === "drift_detected",
       );
       expect(driftLog).toBeDefined();
-      const entry = JSON.parse(driftLog![0] as string);
-      expect(entry.user_id).toBe("user-uuid-1");
-      expect(entry.run_id).toBeUndefined();
+      expect(driftLog![0].entityId).toBe("user-uuid-1");
     });
 
     it("emits success terminal event with counts", async () => {
       mockRpc.mockResolvedValue({ data: driftRows, error: null });
-      const logSpy = vi.spyOn(console, "log");
 
       await GET(makeRequest(`Bearer ${CRON_SECRET}`));
 
-      const logged = logSpy.mock.calls.find(
-        (call) =>
-          typeof call[0] === "string" && call[0].includes('"event":"success"'),
+      const logged = mockLoggerInfo.mock.calls.find(
+        (call) => call[0]?.event === "success",
       );
       expect(logged).toBeDefined();
-      const entry = JSON.parse(logged![0] as string);
-      expect(entry.source).toBe("cron-reconcile");
-      expect(entry.drifted_runs).toBe(2);
-      expect(entry.drifted_users).toBe(1);
+      expect(logged![0].source).toBe("cron-reconcile");
+      expect(logged![0].drifted_runs).toBe(2);
+      expect(logged![0].drifted_users).toBe(1);
     });
 
     it("run counter delta=10 (at threshold) is classified as normal", async () => {
@@ -306,18 +306,14 @@ describe("GET /api/cron/reconcile", () => {
         ],
         error: null,
       });
-      const logSpy = vi.spyOn(console, "log");
 
       await GET(makeRequest(`Bearer ${CRON_SECRET}`));
 
-      const driftLog = logSpy.mock.calls.find(
-        (call) =>
-          typeof call[0] === "string" &&
-          call[0].includes('"event":"drift_detected"'),
+      const driftLog = mockLoggerInfo.mock.calls.find(
+        (call) => call[0]?.event === "drift_detected",
       );
       expect(driftLog).toBeDefined();
-      const entry = JSON.parse(driftLog![0] as string);
-      expect(entry.severity).toBe("normal");
+      expect(driftLog![0].severity).toBe("normal");
     });
 
     it("quota delta=5 (at threshold) is classified as normal", async () => {
@@ -333,18 +329,14 @@ describe("GET /api/cron/reconcile", () => {
         ],
         error: null,
       });
-      const logSpy = vi.spyOn(console, "log");
 
       await GET(makeRequest(`Bearer ${CRON_SECRET}`));
 
-      const driftLog = logSpy.mock.calls.find(
-        (call) =>
-          typeof call[0] === "string" &&
-          call[0].includes('"event":"drift_detected"'),
+      const driftLog = mockLoggerInfo.mock.calls.find(
+        (call) => call[0]?.event === "drift_detected",
       );
       expect(driftLog).toBeDefined();
-      const entry = JSON.parse(driftLog![0] as string);
-      expect(entry.severity).toBe("normal");
+      expect(driftLog![0].severity).toBe("normal");
     });
   });
 
@@ -373,7 +365,6 @@ describe("GET /api/cron/reconcile", () => {
     });
 
     it("logs error on database failure", async () => {
-      const errorSpy = vi.spyOn(console, "error");
       mockRpc.mockResolvedValue({
         data: null,
         error: { code: "42501", message: "db error" },
@@ -381,30 +372,23 @@ describe("GET /api/cron/reconcile", () => {
 
       await GET(makeRequest(`Bearer ${CRON_SECRET}`));
 
-      const logged = errorSpy.mock.calls.find(
-        (call) =>
-          typeof call[0] === "string" && call[0].includes('"event":"error"'),
+      const logged = mockLoggerError.mock.calls.find(
+        (call) => call[0]?.event === "error",
       );
       expect(logged).toBeDefined();
-      const entry = JSON.parse(logged![0] as string);
-      expect(entry.error).toBe("db error");
+      expect(logged![0].error).toBe("db error");
     });
   });
 
   describe("logging", () => {
     it("logs auth_failure on unauthorized access", async () => {
-      const errorSpy = vi.spyOn(console, "error");
-
       await GET(makeRequest("Bearer wrong"));
 
-      const logged = errorSpy.mock.calls.find(
-        (call) =>
-          typeof call[0] === "string" &&
-          call[0].includes('"event":"auth_failure"'),
+      const logged = mockLoggerError.mock.calls.find(
+        (call) => call[0]?.event === "auth_failure",
       );
       expect(logged).toBeDefined();
-      const entry = JSON.parse(logged![0] as string);
-      expect(entry.source).toBe("cron-reconcile");
+      expect(logged![0].source).toBe("cron-reconcile");
     });
   });
 });
