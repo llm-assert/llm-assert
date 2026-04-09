@@ -137,13 +137,12 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
-      - name: Install Supabase CLI
-        run: |
-          curl -fsSL https://raw.githubusercontent.com/supabase/cli/main/install.sh | sh
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
 
       - name: Start Supabase
         run: supabase start
-        working-directory: .
 
       - name: Wait for Supabase health
         run: |
@@ -154,9 +153,7 @@ jobs:
       - name: Extract Supabase keys
         id: supabase-keys
         run: |
-          STATUS=$(supabase status --output json 2>/dev/null || supabase status 2>&1)
-          ANON_KEY=$(echo "$STATUS" | grep -oP 'anon key: \K.*' || echo "$STATUS" | python3 -c "import sys,json; print(json.load(sys.stdin).get('ANON_KEY',''))" 2>/dev/null)
-          SERVICE_ROLE_KEY=$(echo "$STATUS" | grep -oP 'service_role key: \K.*' || echo "$STATUS" | python3 -c "import sys,json; print(json.load(sys.stdin).get('SERVICE_ROLE_KEY',''))" 2>/dev/null)
+          eval "$(supabase status -o env)"
           echo "anon_key=$ANON_KEY" >> "$GITHUB_OUTPUT"
           echo "service_role_key=$SERVICE_ROLE_KEY" >> "$GITHUB_OUTPUT"
 
