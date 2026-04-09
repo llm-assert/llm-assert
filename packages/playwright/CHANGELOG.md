@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.0
+
+### Minor Changes
+
+- [#116](https://github.com/llm-assert/llm-assert/pull/116) [`84a7440`](https://github.com/llm-assert/llm-assert/commit/84a74409b53bc525be57ea2d2950969f4f256cdd) Thanks [@Cporter97](https://github.com/Cporter97)! - Add `@llmassert/playwright/testing` subpath export for Playwright `mergeTests`/`mergeExpects` composition. Exports `{ test, expect }` — the fixture-extended test object and matcher-extended expect object — without the full programmatic API surface.
+
 ## 0.7.1
 
 ### Patch Changes
