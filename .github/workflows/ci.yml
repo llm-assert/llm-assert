@@ -97,7 +97,7 @@ jobs:
           LLMASSERT_INGEST_URL: ""
         run: pnpm test
       - name: Upload test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: test-results
@@ -176,7 +176,7 @@ jobs:
         run: pnpm exec playwright test --config playwright.integration.config.ts
 
       - name: Upload test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: integration-test-results
