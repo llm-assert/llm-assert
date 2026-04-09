@@ -5,6 +5,7 @@ export default defineConfig({
     "src/index.ts",
     "src/reporter.ts",
     "src/fixtures.ts",
+    "src/testing.ts",
     "src/json-reporter.ts",
     "src/preflight/check.ts",
   ],

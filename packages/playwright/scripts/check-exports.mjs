@@ -80,6 +80,30 @@ const esmFixtures = await import("@llmassert/playwright/fixtures");
 if (assertExport(esmFixtures, "test", "function", "./fixtures", "ESM"))
   ok("./fixtures");
 
+const esmTesting = await import("@llmassert/playwright/testing");
+const esmTestingOk =
+  assertExport(esmTesting, "test", "function", "./testing", "ESM") &
+  assertExport(esmTesting, "expect", "function", "./testing", "ESM") &
+  assert(
+    esmTesting.JudgeClient === undefined,
+    "./testing",
+    "ESM",
+    "JudgeClient should not be exported from ./testing",
+  ) &
+  assert(
+    esmTesting.calculateCostUsd === undefined,
+    "./testing",
+    "ESM",
+    "calculateCostUsd should not be exported from ./testing",
+  ) &
+  assert(
+    esmTesting.preflightCheck === undefined,
+    "./testing",
+    "ESM",
+    "preflightCheck should not be exported from ./testing",
+  );
+if (esmTestingOk) ok("./testing");
+
 const esmPreflight = await import("@llmassert/playwright/preflight");
 if (
   assertExport(esmPreflight, "preflightCheck", "function", "./preflight", "ESM")
@@ -134,6 +158,30 @@ const cjsFixtures = require("@llmassert/playwright/fixtures");
 if (assertExport(cjsFixtures, "test", "function", "./fixtures", "CJS"))
   ok("./fixtures");
 
+const cjsTesting = require("@llmassert/playwright/testing");
+const cjsTestingOk =
+  assertExport(cjsTesting, "test", "function", "./testing", "CJS") &
+  assertExport(cjsTesting, "expect", "function", "./testing", "CJS") &
+  assert(
+    cjsTesting.JudgeClient === undefined,
+    "./testing",
+    "CJS",
+    "JudgeClient should not be exported from ./testing",
+  ) &
+  assert(
+    cjsTesting.calculateCostUsd === undefined,
+    "./testing",
+    "CJS",
+    "calculateCostUsd should not be exported from ./testing",
+  ) &
+  assert(
+    cjsTesting.preflightCheck === undefined,
+    "./testing",
+    "CJS",
+    "preflightCheck should not be exported from ./testing",
+  );
+if (cjsTestingOk) ok("./testing");
+
 const cjsPreflight = require("@llmassert/playwright/preflight");
 if (
   assertExport(cjsPreflight, "preflightCheck", "function", "./preflight", "CJS")
@@ -149,5 +197,5 @@ if (failures > 0) {
   console.error(`${failures} export check(s) failed.`);
   process.exit(1);
 } else {
-  console.log("All export checks passed (5 ESM + 5 CJS).");
+  console.log("All export checks passed (6 ESM + 6 CJS).");
 }
