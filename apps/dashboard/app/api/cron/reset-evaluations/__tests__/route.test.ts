@@ -6,11 +6,15 @@ import * as routeModule from "../route";
 // variables. All values must be inlined or use vi.hoisted().
 // ---------------------------------------------------------------------------
 
-const { CRON_SECRET, mockRpc, mockFrom } = vi.hoisted(() => ({
-  CRON_SECRET: "cron_test_secret_for_unit_tests_64chars_minimum_hex_value_ok",
-  mockRpc: vi.fn(),
-  mockFrom: vi.fn(),
-}));
+const { CRON_SECRET, mockRpc, mockFrom, mockLoggerInfo, mockLoggerError } =
+  vi.hoisted(() => ({
+    CRON_SECRET:
+      "cron_test_secret_for_unit_tests_64chars_minimum_hex_value_ok",
+    mockRpc: vi.fn(),
+    mockFrom: vi.fn(),
+    mockLoggerInfo: vi.fn(),
+    mockLoggerError: vi.fn(),
+  }));
 
 vi.mock("@/lib/supabase/admin", () => ({
   supabaseAdmin: () => ({
@@ -25,6 +29,25 @@ vi.mock("@/lib/env.server", () => ({
       return CRON_SECRET;
     },
   },
+}));
+
+vi.mock("@/lib/logger", () => ({
+  createLogger: vi.fn((source: string) => ({
+    info: (...args: unknown[]) =>
+      mockLoggerInfo(
+        { source, ...(args[0] as Record<string, unknown>) },
+        args[1],
+      ),
+    error: (...args: unknown[]) =>
+      mockLoggerError(
+        { source, ...(args[0] as Record<string, unknown>) },
+        args[1],
+      ),
+    warn: vi.fn(),
+    debug: vi.fn(),
+    child: vi.fn(),
+  })),
+  logger: {},
 }));
 
 vi.mock("next/cache", () => ({
@@ -66,12 +89,8 @@ function resetMocks() {
 
 beforeEach(() => {
   resetMocks();
-  vi.spyOn(console, "log").mockImplementation(() => {});
-  vi.spyOn(console, "error").mockImplementation(() => {});
-});
-
-afterEach(() => {
-  vi.restoreAllMocks();
+  mockLoggerInfo.mockClear();
+  mockLoggerError.mockClear();
 });
 
 describe("GET /api/cron/reset-evaluations", () => {
@@ -238,7 +257,6 @@ describe("GET /api/cron/reset-evaluations", () => {
 
   describe("logging", () => {
     it("logs success with reset counts and duration", async () => {
-      const logSpy = vi.spyOn(console, "log");
       mockRpc.mockResolvedValue({
         data: [{ paid_reset_count: 2, free_reset_count: 7 }],
         error: null,
@@ -246,33 +264,26 @@ describe("GET /api/cron/reset-evaluations", () => {
 
       await GET(makeRequest(`Bearer ${CRON_SECRET}`));
 
-      const logged = logSpy.mock.calls.find(
-        (call) =>
-          typeof call[0] === "string" && call[0].includes('"event":"success"'),
+      const logged = mockLoggerInfo.mock.calls.find(
+        (call) => call[0]?.event === "success",
       );
       expect(logged).toBeDefined();
-      const entry = JSON.parse(logged![0] as string);
-      expect(entry.source).toBe("cron-reset");
-      expect(entry.paid_reset_count).toBe(2);
-      expect(entry.free_reset_count).toBe(7);
-      expect(entry.duration_ms).toBeGreaterThanOrEqual(0);
+      expect(logged![0].source).toBe("cron-reset");
+      expect(logged![0].paid_reset_count).toBe(2);
+      expect(logged![0].free_reset_count).toBe(7);
+      expect(logged![0].duration_ms).toBeGreaterThanOrEqual(0);
     });
 
     it("logs auth_failure on unauthorized access", async () => {
-      const errorSpy = vi.spyOn(console, "error");
-
       await GET(makeRequest("Bearer wrong"));
 
-      const logged = errorSpy.mock.calls.find(
-        (call) =>
-          typeof call[0] === "string" &&
-          call[0].includes('"event":"auth_failure"'),
+      const logged = mockLoggerError.mock.calls.find(
+        (call) => call[0]?.event === "auth_failure",
       );
       expect(logged).toBeDefined();
     });
 
     it("logs error on database failure", async () => {
-      const errorSpy = vi.spyOn(console, "error");
       mockRpc.mockResolvedValue({
         data: null,
         error: { code: "42501", message: "db error" },
@@ -280,13 +291,11 @@ describe("GET /api/cron/reset-evaluations", () => {
 
       await GET(makeRequest(`Bearer ${CRON_SECRET}`));
 
-      const logged = errorSpy.mock.calls.find(
-        (call) =>
-          typeof call[0] === "string" && call[0].includes('"event":"error"'),
+      const logged = mockLoggerError.mock.calls.find(
+        (call) => call[0]?.event === "error",
       );
       expect(logged).toBeDefined();
-      const entry = JSON.parse(logged![0] as string);
-      expect(entry.error).toBe("db error");
+      expect(logged![0].error).toBe("db error");
     });
   });
 });

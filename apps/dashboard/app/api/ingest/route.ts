@@ -4,7 +4,10 @@ import { revalidateTag } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { computeNextResetDate } from "@/lib/billing/reset-date";
 import { checkRateLimit, getApiRateLimitConfig } from "@/lib/rate-limit";
+import { createLogger } from "@/lib/logger";
 import { IngestPayloadSchema } from "./schema";
+
+const log = createLogger("ingest");
 
 export const maxDuration = 30;
 
@@ -47,16 +50,13 @@ export async function POST(request: Request): Promise<Response> {
       contentLengthHeader != null &&
       Number(contentLengthHeader) > INGEST_MAX_BODY_BYTES
     ) {
-      console.error(
-        JSON.stringify({
-          source: "ingest",
+      log.error(
+        {
           event: "payload_too_large",
-          content_length_header: Number(contentLengthHeader),
-          actual_bytes: null,
-          limit_bytes: INGEST_MAX_BODY_BYTES,
-          user_id: null,
-          project_id: null,
-        }),
+          contentLengthHeader: Number(contentLengthHeader),
+          limitBytes: INGEST_MAX_BODY_BYTES,
+        },
+        "request body exceeds size limit (content-length)",
       );
       return errorResponse(
         "PAYLOAD_TOO_LARGE",
@@ -91,6 +91,10 @@ export async function POST(request: Request): Promise<Response> {
       .single();
 
     if (keyError || !apiKey) {
+      log.warn(
+        { event: "auth_failure", keyPrefix: token.slice(0, 8) },
+        "API key lookup failed",
+      );
       return errorResponse("UNAUTHORIZED", "Missing or invalid API key", 401);
     }
 
@@ -128,18 +132,15 @@ export async function POST(request: Request): Promise<Response> {
 
     const actualBytes = Buffer.byteLength(rawBody, "utf8");
     if (actualBytes > INGEST_MAX_BODY_BYTES) {
-      console.error(
-        JSON.stringify({
-          source: "ingest",
+      log.error(
+        {
           event: "payload_too_large",
-          content_length_header: contentLengthHeader
-            ? Number(contentLengthHeader)
-            : null,
-          actual_bytes: actualBytes,
-          limit_bytes: INGEST_MAX_BODY_BYTES,
-          user_id: apiKey.user_id,
-          project_id: apiKey.project_id,
-        }),
+          actualBytes,
+          limitBytes: INGEST_MAX_BODY_BYTES,
+          userId: apiKey.user_id,
+          projectId: apiKey.project_id,
+        },
+        "request body exceeds size limit",
       );
       return errorResponse(
         "PAYLOAD_TOO_LARGE",
@@ -202,6 +203,17 @@ export async function POST(request: Request): Promise<Response> {
           403,
         );
       }
+      log.error(
+        {
+          event: "batch_insert_error",
+          keyPrefix: token.slice(0, 8),
+          batchSize: payload.evaluations.length,
+          runId: payload.run_id,
+          errorCode: rpcError.code,
+          errorMessage: rpcError.message,
+        },
+        "RPC ingest_test_run failed",
+      );
       throw rpcError;
     }
 
@@ -218,13 +230,13 @@ export async function POST(request: Request): Promise<Response> {
         .maybeSingle();
 
       if (subError) {
-        console.error(
-          JSON.stringify({
-            source: "ingest",
+        log.error(
+          {
             event: "subscription_query_error",
-            user_id: apiKey.user_id,
-            error: subError.message,
-          }),
+            userId: apiKey.user_id,
+            errorMessage: subError.message,
+          },
+          "failed to query subscription for quota context",
         );
       }
 
@@ -234,18 +246,17 @@ export async function POST(request: Request): Promise<Response> {
         sub?.current_period_end ?? null,
       );
 
-      // Structured log for observability
-      console.error(
-        JSON.stringify({
-          source: "ingest",
+      log.warn(
+        {
           event: "quota_exceeded",
-          user_id: apiKey.user_id,
-          project_id: apiKey.project_id,
+          userId: apiKey.user_id,
+          projectId: apiKey.project_id,
           plan,
-          evaluations_used: row.evaluations_used,
-          evaluation_limit: row.evaluation_limit,
-          batch_size: payload.evaluations.length,
-        }),
+          evaluationsUsed: row.evaluations_used,
+          evaluationLimit: row.evaluation_limit,
+          batchSize: payload.evaluations.length,
+        },
+        "evaluation quota exceeded",
       );
 
       // Bust subscription cache so dashboard reflects exhaustion immediately
@@ -288,7 +299,7 @@ export async function POST(request: Request): Promise<Response> {
       200,
     );
   } catch (error) {
-    console.error("[ingest] Internal error:", error);
+    log.error({ err: error }, "internal error");
     return errorResponse("INTERNAL_ERROR", "Internal server error", 500);
   }
 }

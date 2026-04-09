@@ -2,6 +2,9 @@ import { resolveAuth, resolveProject, AuthError } from "@/lib/api/auth";
 import { success, error, OPTIONS as corsOptions } from "@/lib/api/response";
 import { checkRateLimit, getPreflightRateLimitConfig, getClientIp } from "@/lib/rate-limit";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("ingest/preflight");
 
 export const maxDuration = 5;
 
@@ -14,9 +17,7 @@ export async function GET(request: Request): Promise<Response> {
     // IP-based rate limiting (before auth to prevent key-validity oracle abuse)
     const clientIp = getClientIp(request);
     if (clientIp === "unknown") {
-      console.warn(
-        JSON.stringify({ source: "ingest/preflight", event: "unknown_client_ip" }),
-      );
+      log.warn({ event: "unknown_client_ip" }, "could not determine client IP");
     }
     const rateLimitResult = await checkRateLimit(
       `preflight:${clientIp}`,
@@ -98,7 +99,7 @@ export async function GET(request: Request): Promise<Response> {
     if (err instanceof AuthError) {
       return error(err.code, err.message, err.status);
     }
-    console.error("[ingest/preflight] Internal error:", err);
+    log.error({ err }, "internal error");
     return error("INTERNAL_ERROR", "Internal server error", 500);
   }
 }

@@ -302,6 +302,28 @@ jobs:
           done
           echo "::warning::Health check did not pass after 3 attempts — deployment may need investigation"
 
+      - name: Check log drain health
+        continue-on-error: true
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          DRAINS=$(curl -sf -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v2/integrations/log-drains?teamId=$VERCEL_ORG_ID&projectId=$VERCEL_PROJECT_ID" \
+            2>/dev/null) || {
+            echo "::warning::Could not reach Vercel Log Drains API — drain health unknown"
+            exit 0
+          }
+
+          ACTIVE_COUNT=$(echo "$DRAINS" | jq '[.[] | select(.status == "enabled")] | length' 2>/dev/null) || ACTIVE_COUNT=0
+
+          if [ "$ACTIVE_COUNT" -gt 0 ]; then
+            echo "Log drain health: $ACTIVE_COUNT active drain(s)"
+          else
+            echo "::warning::No active log drain detected — production logs may not be persisted"
+          fi
+
       - name: Rollback on failure
         if: failure() && steps.current-prod.outputs.url != ''
         env:

@@ -6,10 +6,12 @@ import { POST } from "../route";
 // variables. All values must be inlined or use vi.hoisted().
 // ---------------------------------------------------------------------------
 
-const { WEBHOOK_SECRET, mockRpc, mockSubscriptionSelect } = vi.hoisted(() => ({
+const { WEBHOOK_SECRET, mockRpc, mockSubscriptionSelect, mockLoggerInfo, mockLoggerError } = vi.hoisted(() => ({
   WEBHOOK_SECRET: "whsec_test_secret_for_unit_tests",
   mockRpc: vi.fn(),
   mockSubscriptionSelect: vi.fn(),
+  mockLoggerInfo: vi.fn(),
+  mockLoggerError: vi.fn(),
 }));
 
 /** Default pre-read subscription state for tests */
@@ -56,6 +58,25 @@ vi.mock("@/lib/stripe", async () => {
     },
   };
 });
+
+vi.mock("@/lib/logger", () => ({
+  createLogger: vi.fn((source: string) => ({
+    info: (...args: unknown[]) =>
+      mockLoggerInfo(
+        { source, ...(args[0] as Record<string, unknown>) },
+        args[1],
+      ),
+    error: (...args: unknown[]) =>
+      mockLoggerError(
+        { source, ...(args[0] as Record<string, unknown>) },
+        args[1],
+      ),
+    warn: vi.fn(),
+    debug: vi.fn(),
+    child: vi.fn(),
+  })),
+  logger: {},
+}));
 
 vi.mock("@/lib/env.server", () => ({
   serverEnv: {
@@ -251,7 +272,7 @@ describe("POST /api/webhooks/stripe", () => {
     });
 
     it("logs duplicate_skipped when RPC returns duplicate", async () => {
-      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      mockLoggerInfo.mockClear();
       mockRpc.mockResolvedValue({ data: "duplicate", error: null });
 
       const body = buildEvent("customer.subscription.deleted", {
@@ -259,13 +280,10 @@ describe("POST /api/webhooks/stripe", () => {
       });
       await POST(makeRequest(body));
 
-      const logged = logSpy.mock.calls.find(
-        (call) =>
-          typeof call[0] === "string" && call[0].includes("duplicate_skipped"),
+      const logged = mockLoggerInfo.mock.calls.find(
+        (call) => call[0]?.event === "duplicate_skipped",
       );
       expect(logged).toBeDefined();
-
-      logSpy.mockRestore();
     });
   });
 
@@ -548,7 +566,7 @@ describe("POST /api/webhooks/stripe", () => {
 
   describe("RPC failure triggers Stripe retry", () => {
     it("returns 500 when RPC fails so Stripe retries the event", async () => {
-      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      mockLoggerError.mockClear();
       mockRpc.mockResolvedValue({
         error: { code: "42501", message: "permission denied" },
       });
@@ -560,19 +578,16 @@ describe("POST /api/webhooks/stripe", () => {
       const res = await POST(makeRequest(body));
       expect(res.status).toBe(500);
 
-      const logged = errorSpy.mock.calls.find(
-        (call) =>
-          typeof call[0] === "string" && call[0].includes("processing_error"),
+      const logged = mockLoggerError.mock.calls.find(
+        (call) => call[0]?.event === "processing_error",
       );
       expect(logged).toBeDefined();
-
-      errorSpy.mockRestore();
     });
   });
 
   describe("error handling", () => {
     it("returns 500 and logs error when Stripe API fails during plan resolution", async () => {
-      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      mockLoggerError.mockClear();
       const stripeMod = await import("@/lib/stripe");
       const mockRetrieve = (
         stripeMod.stripe!.subscriptions as {
@@ -592,33 +607,26 @@ describe("POST /api/webhooks/stripe", () => {
       expect(res.status).toBe(500);
       expect(mockRpc).not.toHaveBeenCalled();
 
-      const logged = errorSpy.mock.calls.find(
-        (call) =>
-          typeof call[0] === "string" && call[0].includes("resolve_plan_error"),
+      const logged = mockLoggerError.mock.calls.find(
+        (call) => call[0]?.event === "resolve_plan_error",
       );
       expect(logged).toBeDefined();
-      expect(logged![0]).toContain("sub_fail");
-      expect(logged![0]).toContain("Stripe rate limited");
-
-      errorSpy.mockRestore();
+      expect(logged![0].stripeId).toBe("sub_fail");
+      expect(logged![0].error).toContain("Stripe rate limited");
     });
 
     it("logs secret fingerprint on signature verification failure", async () => {
-      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      mockLoggerError.mockClear();
       const body = buildEvent("charge.succeeded", {});
       const req = makeRequest(body, "invalid_signature_header");
 
       await POST(req);
 
-      const logged = errorSpy.mock.calls.find(
-        (call) =>
-          typeof call[0] === "string" &&
-          call[0].includes("signature_verification_failed"),
+      const logged = mockLoggerError.mock.calls.find(
+        (call) => call[0]?.event === "signature_verification_failed",
       );
       expect(logged).toBeDefined();
-      expect(logged![0]).toContain(WEBHOOK_SECRET.slice(-8));
-
-      errorSpy.mockRestore();
+      expect(logged![0].error).toContain(WEBHOOK_SECRET.slice(-8));
     });
   });
 });
