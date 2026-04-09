@@ -46,6 +46,12 @@ import JSONReporter from "@llmassert/playwright/json-reporter";
 import type { LLMAssertOptions as FixtureOptions } from "@llmassert/playwright/fixtures";
 import { test as fixtureTest } from "@llmassert/playwright/fixtures";
 
+// Testing subpath
+import {
+  test as testingTest,
+  expect as testingExpect,
+} from "@llmassert/playwright/testing";
+
 // Preflight subpath
 import type { PreflightCheckConfig } from "@llmassert/playwright/preflight";
 import { preflightCheck as preflightCheckFn } from "@llmassert/playwright/preflight";
@@ -64,6 +70,8 @@ void (preflightCheck satisfies AnyFn);
 void (Reporter satisfies AnyClass);
 void (JSONReporter satisfies AnyClass);
 void (fixtureTest satisfies AnyFn);
+void (testingTest satisfies AnyFn);
+void (testingExpect satisfies AnyFn);
 void (preflightCheckFn satisfies AnyFn);
 
 // Verify type-only exports are structurally valid
@@ -74,3 +82,12 @@ const _preflightConfig: PreflightCheckConfig = {
 };
 void _result;
 void _preflightConfig;
+
+// Verify matcher types resolve from ./testing subpath (module augmentation carries through)
+async function _testingSubpathMatchers() {
+  await testingExpect("output").toBeGroundedIn("context");
+  await testingExpect("output").toBeFreeOfPII();
+  await testingExpect("output").toMatchTone("professional");
+  await testingExpect("output").toBeFormatCompliant("json");
+  await testingExpect("output").toSemanticMatch("expected");
+}
