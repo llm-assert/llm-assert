@@ -130,7 +130,7 @@ jobs:
         working-directory: apps/dashboard
 
       - name: Upload test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: deploy-verify-results-${{ github.event.deployment.environment }}
@@ -198,7 +198,7 @@ jobs:
         working-directory: apps/dashboard
 
       - name: Upload test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: deploy-verify-auth-results
