@@ -236,7 +236,7 @@ jobs:
             echo "Attempt $i/20..."
             DEPLOYMENT_URL=$(vercel list --token "$VERCEL_TOKEN" \
               --scope "$VERCEL_ORG_ID" \
-              --meta gitCommitSha="$GITHUB_SHA" \
+              --meta githubCommitSha="$GITHUB_SHA" \
               --json 2>/dev/null \
               | jq -r '.deployments[] | select(.state == "READY" and .target != "production") | .url' \
               | head -1) || true
@@ -285,7 +285,7 @@ jobs:
           DEPLOY_URL: ${{ steps.resolve.outputs.url }}
         run: |
           echo "Promoting $DEPLOY_URL to production..."
-          vercel promote "$DEPLOY_URL" --token "$VERCEL_TOKEN" --scope "$VERCEL_ORG_ID" --yes
+          vercel promote "$DEPLOY_URL" --token "$VERCEL_TOKEN" --scope "$VERCEL_ORG_ID" --yes --timeout=5m
 
           echo "## Production Promoted" >> "$GITHUB_STEP_SUMMARY"
           echo "**Deployment:** $DEPLOY_URL" >> "$GITHUB_STEP_SUMMARY"
@@ -299,6 +299,6 @@ jobs:
           PREVIOUS_URL: ${{ steps.current-prod.outputs.url }}
         run: |
           echo "::warning::Promote failed — rolling back to $PREVIOUS_URL"
-          vercel promote "$PREVIOUS_URL" --token "$VERCEL_TOKEN" --scope "$VERCEL_ORG_ID" --yes || true
+          vercel promote "$PREVIOUS_URL" --token "$VERCEL_TOKEN" --scope "$VERCEL_ORG_ID" --yes --timeout=5m || true
           echo "## Rollback Executed" >> "$GITHUB_STEP_SUMMARY"
           echo "**Restored:** $PREVIOUS_URL" >> "$GITHUB_STEP_SUMMARY"

@@ -71,7 +71,7 @@ jobs:
           DEPLOY_URL: ${{ inputs.deployment_url }}
         run: |
           echo "Promoting $DEPLOY_URL to production (emergency bypass)..."
-          vercel promote "$DEPLOY_URL" --token "$VERCEL_TOKEN" --scope "$VERCEL_ORG_ID" --yes
+          vercel promote "$DEPLOY_URL" --token "$VERCEL_TOKEN" --scope "$VERCEL_ORG_ID" --yes --timeout=5m
 
           echo "## Production Promoted (Emergency)" >> "$GITHUB_STEP_SUMMARY"
           echo "**Deployment:** $DEPLOY_URL" >> "$GITHUB_STEP_SUMMARY"
@@ -84,6 +84,6 @@ jobs:
           PREVIOUS_URL: ${{ steps.current-prod.outputs.url }}
         run: |
           echo "::warning::Emergency promote failed — rolling back to $PREVIOUS_URL"
-          vercel promote "$PREVIOUS_URL" --token "$VERCEL_TOKEN" --scope "$VERCEL_ORG_ID" --yes || true
+          vercel promote "$PREVIOUS_URL" --token "$VERCEL_TOKEN" --scope "$VERCEL_ORG_ID" --yes --timeout=5m || true
           echo "## Rollback Executed" >> "$GITHUB_STEP_SUMMARY"
           echo "**Restored:** $PREVIOUS_URL" >> "$GITHUB_STEP_SUMMARY"
