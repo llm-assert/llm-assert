@@ -232,21 +232,12 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel@50.42.0
 
-      - name: Pull Vercel environment
-        working-directory: apps/dashboard
+      - name: Link Vercel project
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: vercel pull --yes --environment=production --token "$VERCEL_TOKEN"
-
-      - name: Build project
-        working-directory: apps/dashboard
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-        run: vercel build --prod --token "$VERCEL_TOKEN"
 
       - name: Capture current production deployment
         id: current-prod
@@ -271,13 +262,12 @@ jobs:
 
       - name: Deploy to production
         id: deploy
-        working-directory: apps/dashboard
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-          DEPLOY_URL=$(vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN" --archive=tgz)
+          DEPLOY_URL=$(vercel deploy --prod --token "$VERCEL_TOKEN")
           echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
 
           echo "## Production Deployed" >> "$GITHUB_STEP_SUMMARY"
