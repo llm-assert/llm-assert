@@ -237,14 +237,14 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-        run: vercel pull --yes --environment=production --token "$VERCEL_TOKEN"
+        run: vercel pull --yes --environment=production --token "$VERCEL_TOKEN" --cwd apps/dashboard
 
       - name: Build project
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-        run: vercel build --prod --token "$VERCEL_TOKEN"
+        run: vercel build --prod --token "$VERCEL_TOKEN" --cwd apps/dashboard
 
       - name: Capture current production deployment
         id: current-prod
@@ -274,7 +274,7 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-          DEPLOY_URL=$(vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN" --archive=tgz)
+          DEPLOY_URL=$(vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN" --archive=tgz --cwd apps/dashboard)
           echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
 
           echo "## Production Deployed" >> "$GITHUB_STEP_SUMMARY"
