@@ -125,6 +125,71 @@ jobs:
           STRIPE_TEAM_PRICE_ID: ${{ secrets.STRIPE_TEAM_PRICE_ID }}
         run: pnpm exec tsx scripts/stripe-verify.ts
 
+  integration-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Install Supabase CLI
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/supabase/cli/main/install.sh | sh
+
+      - name: Start Supabase
+        run: supabase start
+        working-directory: .
+
+      - name: Wait for Supabase health
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:54321/rest/v1/ -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0" && break || sleep 2
+          done
+
+      - name: Extract Supabase keys
+        id: supabase-keys
+        run: |
+          STATUS=$(supabase status --output json 2>/dev/null || supabase status 2>&1)
+          ANON_KEY=$(echo "$STATUS" | grep -oP 'anon key: \K.*' || echo "$STATUS" | python3 -c "import sys,json; print(json.load(sys.stdin).get('ANON_KEY',''))" 2>/dev/null)
+          SERVICE_ROLE_KEY=$(echo "$STATUS" | grep -oP 'service_role key: \K.*' || echo "$STATUS" | python3 -c "import sys,json; print(json.load(sys.stdin).get('SERVICE_ROLE_KEY',''))" 2>/dev/null)
+          echo "anon_key=$ANON_KEY" >> "$GITHUB_OUTPUT"
+          echo "service_role_key=$SERVICE_ROLE_KEY" >> "$GITHUB_OUTPUT"
+
+      - name: Build plugin package
+        run: pnpm --filter @llmassert/playwright build
+
+      # Next.js is started automatically by Playwright's webServer config
+      # (playwright.integration.config.ts) which waits for localhost:3000 health.
+      - name: Run integration tests
+        working-directory: apps/dashboard
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321"
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ steps.supabase-keys.outputs.anon_key }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ steps.supabase-keys.outputs.service_role_key }}
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: "pk_test_placeholder"
+          NEXT_PUBLIC_APP_URL: "http://localhost:3000"
+          STRIPE_SECRET_KEY: "sk_test_placeholder"
+          STRIPE_WEBHOOK_SECRET: "whsec_placeholder"
+          CRON_SECRET: "test-cron-secret"
+        run: pnpm exec playwright test --config playwright.integration.config.ts
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: integration-test-results
+          path: apps/dashboard/test-results/
+          retention-days: 7
+
+      - name: Stop Supabase
+        if: always()
+        run: supabase stop
+
   commitlint:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
