@@ -214,48 +214,30 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [lint, typecheck, build, test, pkg-exports, integration-test, verify-stripe]
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     environment: production
     permissions:
       contents: read
       deployments: write
     steps:
+      - uses: actions/checkout@v5
+
       - name: Install Vercel CLI
         run: npm install -g vercel@50.42.0
 
-      - name: Resolve preview deployment URL
-        id: resolve
+      - name: Pull Vercel environment
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-        run: |
-          echo "Resolving preview deployment for SHA: $GITHUB_SHA"
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: vercel pull --yes --environment=production --token "$VERCEL_TOKEN"
 
-          DEPLOYMENT_URL=""
-          for i in $(seq 1 20); do
-            echo "Attempt $i/20..."
-            DEPLOYMENT_URL=$(vercel list --token "$VERCEL_TOKEN" \
-              --scope "$VERCEL_ORG_ID" \
-              --meta githubCommitSha="$GITHUB_SHA" \
-              --json 2>/dev/null \
-              | jq -r '.deployments[] | select(.state == "READY" and .target != "production") | .url' \
-              | head -1) || true
-
-            if [ -n "$DEPLOYMENT_URL" ]; then
-              echo "Found deployment: https://$DEPLOYMENT_URL"
-              echo "url=https://$DEPLOYMENT_URL" >> "$GITHUB_OUTPUT"
-              break
-            fi
-
-            echo "No READY preview found, retrying in 15s..."
-            sleep 15
-          done
-
-          if [ -z "$DEPLOYMENT_URL" ]; then
-            echo "::error::No READY preview deployment found for commit $GITHUB_SHA after 5 minutes"
-            echo "Check Vercel Git Integration status and ensure preview builds are enabled."
-            exit 1
-          fi
+      - name: Build project
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: vercel build --prod --token "$VERCEL_TOKEN"
 
       - name: Capture current production deployment
         id: current-prod
@@ -278,18 +260,47 @@ jobs:
             echo "::warning::Could not capture current production deployment URL"
           fi
 
-      - name: Promote to production
+      - name: Deploy to production
+        id: deploy
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          DEPLOY_URL: ${{ steps.resolve.outputs.url }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-          echo "Promoting $DEPLOY_URL to production..."
-          vercel promote "$DEPLOY_URL" --token "$VERCEL_TOKEN" --scope "$VERCEL_ORG_ID" --yes --timeout=5m
+          DEPLOY_URL=$(vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN" --archive=tgz)
+          echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
 
-          echo "## Production Promoted" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Production Deployed" >> "$GITHUB_STEP_SUMMARY"
           echo "**Deployment:** $DEPLOY_URL" >> "$GITHUB_STEP_SUMMARY"
           echo "**Commit:** $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify deployment health
+        env:
+          DEPLOY_URL: ${{ steps.deploy.outputs.url }}
+          BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: |
+          BYPASS_HEADER=""
+          if [ -n "$BYPASS_SECRET" ]; then
+            BYPASS_HEADER="-H x-vercel-protection-bypass:${BYPASS_SECRET}"
+          fi
+
+          for i in 1 2 3; do
+            echo "Health check attempt $i/3..."
+            HTTP_CODE=$(curl -s -o /tmp/health-body -w "%{http_code}" --max-time 15 \
+              ${BYPASS_HEADER:+$BYPASS_HEADER} \
+              "${DEPLOY_URL}/api/health?mode=deep&_t=$(date +%s)" 2>/dev/null) || true
+            if [ "$HTTP_CODE" = "200" ]; then
+              STATUS=$(cat /tmp/health-body | jq -r '.status' 2>/dev/null)
+              if [ "$STATUS" = "healthy" ]; then
+                echo "Health check passed: $STATUS"
+                exit 0
+              fi
+              echo "Health status: $STATUS (expected: healthy)"
+            fi
+            echo "Attempt $i failed (HTTP $HTTP_CODE), retrying in 10s..."
+            sleep 10
+          done
+          echo "::warning::Health check did not pass after 3 attempts — deployment may need investigation"
 
       - name: Rollback on failure
         if: failure() && steps.current-prod.outputs.url != ''
@@ -298,7 +309,7 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           PREVIOUS_URL: ${{ steps.current-prod.outputs.url }}
         run: |
-          echo "::warning::Promote failed — rolling back to $PREVIOUS_URL"
+          echo "::warning::Deploy failed — rolling back to $PREVIOUS_URL"
           vercel promote "$PREVIOUS_URL" --token "$VERCEL_TOKEN" --scope "$VERCEL_ORG_ID" --yes --timeout=5m || true
           echo "## Rollback Executed" >> "$GITHUB_STEP_SUMMARY"
           echo "**Restored:** $PREVIOUS_URL" >> "$GITHUB_STEP_SUMMARY"
