@@ -61,3 +61,12 @@ supabase/migrations/     # Postgres DDL with RLS
 - Don't hardcode judge model names — use the configurable fallback chain
 - Don't use snapshot tests
 - Don't add `.eq("user_id")` to service_role/admin queries (ingest, webhooks, crons) — they bypass RLS intentionally
+
+## Deployment
+
+- Production deploys are **CI-gated**: pushes to `main` trigger a preview build via Vercel Git Integration, then the `promote` job in `ci.yml` promotes it to production after all CI jobs pass
+- Preview deployments on PRs are automatic (not gated by CI)
+- `llm-assert-docs` stays on automatic Vercel Git Integration (no CI gate)
+- Emergency bypass: use the `Emergency Promote` workflow via GitHub Actions `workflow_dispatch` — requires a deployment URL and reason
+- `VERCEL_TOKEN` is stored in the GitHub Environment `production` (project-scoped, branch-restricted to `main`)
+- Vercel CLI is pinned at `vercel@50.42.0` in workflow files — update via Dependabot

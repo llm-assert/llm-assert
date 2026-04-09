@@ -1,0 +1,89 @@
+# Emergency Promote — Manual production deployment bypass
+#
+# Use when CI is blocked or degraded and a production deploy is urgent.
+# Skips all CI checks and promotes a specific deployment URL directly.
+#
+# See: DX-24 (CI-gated Vercel deployment)
+
+name: Emergency Promote
+
+on:
+  workflow_dispatch:
+    inputs:
+      deployment_url:
+        description: "Vercel deployment URL to promote to production"
+        required: true
+        type: string
+      reason:
+        description: "Reason for emergency bypass (required for audit trail)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  deployments: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    steps:
+      - name: Emergency bypass annotation
+        env:
+          BYPASS_REASON: ${{ inputs.reason }}
+          DEPLOY_URL: ${{ inputs.deployment_url }}
+        run: |
+          echo "::warning::Emergency bypass triggered by $GITHUB_ACTOR"
+          echo "## Emergency Bypass" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Reason:** $BYPASS_REASON" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Triggered by:** $GITHUB_ACTOR" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Deployment:** $DEPLOY_URL" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@50.42.0
+
+      - name: Capture current production deployment
+        id: current-prod
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+        run: |
+          PROD_URL=$(vercel list --token "$VERCEL_TOKEN" \
+            --scope "$VERCEL_ORG_ID" \
+            --environment production \
+            --json 2>/dev/null \
+            | jq -r '.deployments[0].url' \
+            | head -1) || true
+
+          if [ -n "$PROD_URL" ] && [ "$PROD_URL" != "null" ]; then
+            echo "url=https://$PROD_URL" >> "$GITHUB_OUTPUT"
+            echo "Current production: https://$PROD_URL"
+          else
+            echo "url=" >> "$GITHUB_OUTPUT"
+            echo "::warning::Could not capture current production deployment URL"
+          fi
+
+      - name: Promote to production
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          DEPLOY_URL: ${{ inputs.deployment_url }}
+        run: |
+          echo "Promoting $DEPLOY_URL to production (emergency bypass)..."
+          vercel promote "$DEPLOY_URL" --token "$VERCEL_TOKEN" --scope "$VERCEL_ORG_ID" --yes
+
+          echo "## Production Promoted (Emergency)" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Deployment:** $DEPLOY_URL" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Rollback on failure
+        if: failure() && steps.current-prod.outputs.url != ''
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          PREVIOUS_URL: ${{ steps.current-prod.outputs.url }}
+        run: |
+          echo "::warning::Emergency promote failed — rolling back to $PREVIOUS_URL"
+          vercel promote "$PREVIOUS_URL" --token "$VERCEL_TOKEN" --scope "$VERCEL_ORG_ID" --yes || true
+          echo "## Rollback Executed" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Restored:** $PREVIOUS_URL" >> "$GITHUB_STEP_SUMMARY"
